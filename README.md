@@ -100,7 +100,7 @@ The packaged application uses Python, PyQt5/Qt, PyQtGraph, NumPy, pandas, SciPy,
 - **Ziyu Zhou** — [GitHub: ZhouZiyuMizar](https://github.com/ZhouZiyuMizar)
 - **Hongbin Zhang**
 
-**Advanced Institute of Rheology, Shanghai Jiao Tong University.** Author names and institutional attribution follow the supplied English user manual.
+**Advanced Rheology Institute, Shanghai Jiao Tong University.** Author names and institutional attribution follow the supplied English user manual.
 
 ## Citation
 
