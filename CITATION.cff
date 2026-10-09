@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "If you use LAOS Analysis Software, please cite this software release."
+type: software
+title: "LAOS Analysis Software"
+authors:
+  - family-names: Zhou
+    given-names: Ziyu
+  - family-names: Zhang
+    given-names: Hongbin
+version: "1.0"
+date-released: "2026-10-09"
+url: "https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software"
+repository: "https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software"

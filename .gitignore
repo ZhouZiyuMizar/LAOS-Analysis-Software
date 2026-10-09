@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*.log
+.venv/
+venv/
+.env
+.activation
+build/
+dist/
+release-assets/
+*.tmp
+Thumbs.db
