@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Simplified icon version for app icon -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="hexGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2196F3"/>
+      <stop offset="100%" style="stop-color:#1976D2"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Hexagon -->
+  <polygon points="32,8 52,20 52,44 32,56 12,44 12,20"
+           fill="none" stroke="url(#hexGrad)" stroke-width="4" stroke-linejoin="round"/>
+
+  <!-- Curve -->
+  <path d="M 20,32 Q 26,22 32,32 Q 38,42 44,32"
+        fill="none" stroke="#FF5722" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Nodes -->
+  <circle cx="32" cy="8" r="3" fill="#1976D2"/>
+  <circle cx="52" cy="20" r="3" fill="#1976D2"/>
+  <circle cx="52" cy="44" r="3" fill="#1976D2"/>
+  <circle cx="32" cy="56" r="3" fill="#1976D2"/>
+  <circle cx="12" cy="44" r="3" fill="#1976D2"/>
+  <circle cx="12" cy="20" r="3" fill="#1976D2"/>
+
+  <!-- Center dot -->
+  <circle cx="32" cy="32" r="2" fill="#FF5722"/>
+</svg>

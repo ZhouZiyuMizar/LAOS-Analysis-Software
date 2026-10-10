@@ -1,29 +1,40 @@
-# Dependencies and runtime
+# Dependencies and Runtime
 
-## For application users
+## Packaged Windows Application
 
-The Windows ZIP includes its Python runtime and dependencies. Do not install a separate Python environment or replace individual bundled libraries to run this package. Keep the supplied `_internal` directory intact.
+The Windows ZIP includes its Python runtime and dependencies. Users should keep
+the supplied `_internal` directory intact and beside `LAOS_Analysis.exe`.
 
-## Component overview
+No separate Python, Conda, compiler, or package-manager setup is needed for the
+packaged application.
+
+## Running from Source
+
+The cleaned source code is available in [`src/`](../src/). To run it, install
+Python 3.8 or a compatible Python 3 version, then install:
+
+```bash
+pip install -r requirements.txt
+python src/main.py
+```
+
+The source tree is provided for transparency, review, and further development.
+The packaged Windows release remains the recommended route for normal use.
+
+## Component Overview
 
 | Component | Role |
 | --- | --- |
-| Python runtime | Application execution |
-| PyQt5 / Qt and Qt plugins | Desktop interface, widgets, and supporting display components |
-| PyQtGraph / PyOpenGL | Interactive plotting and graphics support |
+| Python | Application execution |
+| PyQt5 and Qt | Desktop interface and widgets |
+| PyQtGraph and PyOpenGL | Interactive plotting and graphics support |
 | NumPy | Numeric arrays and Fourier operations |
 | pandas | Tabular data and workbook handling |
 | SciPy | Signal processing, numerical routines, and optimization |
 | Matplotlib | Scientific plots and figure export |
-| Plotly / Kaleido | Plotly-based visualization and export support |
-| openpyxl / xlrd | Excel-reading engines used for XLSX / XLS workflows |
-| Pillow and supporting libraries | Image handling and supporting runtime functions |
-| PyInstaller | Tool used to assemble the Windows distribution; not an installation requirement for users |
+| Plotly | Plotly-based visualization and export support |
+| openpyxl and xlrd | Excel-reading engines used for XLSX and XLS workflows |
+| PyInstaller | Tool used to assemble the Windows distribution |
 
-The release also contains platform libraries, Qt resources, fonts, translations, and existing third-party notices. Some Python modules may be bundled inside application archives rather than visible as individual folders.
-
-## Source-build status
-
-This repository currently distributes the application, documentation, examples, and tutorial links. It does not provide a supported source-build workflow or a verified environment lockfile. The table describes component roles, not independently installable version constraints. A generic `pip install` list would not reproduce the supplied binary reliably, so no unverified requirements file is presented as a build recipe.
-
-Existing third-party licenses remain applicable; bundled notices are retained. See [Copyright](../COPYRIGHT.md).
+Third-party packages remain under their own licenses. The repository license is
+described in [LICENSE](../LICENSE).

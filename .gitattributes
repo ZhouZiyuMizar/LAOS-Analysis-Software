@@ -1,0 +1,11 @@
+* text=auto
+
+"examples/Test Data/**" -text
+
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.xls binary
+*.xlsx binary
+*.zip binary

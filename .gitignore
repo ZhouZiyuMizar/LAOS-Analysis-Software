@@ -1,6 +1,8 @@
 __pycache__/
 *.py[cod]
 *.log
+*.backup
+*.backup_colorbar
 .venv/
 venv/
 .env
@@ -8,5 +10,7 @@ venv/
 build/
 dist/
 release-assets/
+logs/
+output/
 *.tmp
 Thumbs.db

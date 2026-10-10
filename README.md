@@ -1,117 +1,118 @@
 # LAOS Analysis Software
 
-**v1.0 · Windows x64 · Desktop application for nonlinear rheology**
+**v1.0, Windows x64 desktop software for nonlinear rheology**
 
-[Download v1.0](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/tag/v1.0) · [Getting started](docs/GETTING-STARTED.md) · [English manual](docs/User-Manual-EN.pdf) · [中文说明](README.zh-CN.md) · [Video tutorials](videos/README.md)
+[Download the Windows app](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/tag/v1.0) | [Source code](src/) | [Example data](examples/Test%20Data/) | [English manual](docs/User-Manual-EN.pdf) | [Chinese README](README.zh-CN.md)
 
 ## Overview
 
-LAOS Analysis is a graphical desktop application for processing and interpreting large-amplitude oscillatory shear (LAOS) measurements. It brings raw-data preparation, nonlinear viscoelastic analysis, and figure export into one local workflow, helping researchers compare complementary descriptions of a material's response within and across oscillation cycles.
+LAOS Analysis Software is a desktop application for processing and interpreting large-amplitude oscillatory shear measurements. It supports raw-data preparation, nonlinear viscoelastic analysis, and figure export in one local workflow.
 
-The application is intended for researchers working with soft materials and complex fluids, including polymer solutions, suspensions, gels, and food materials. It combines Fourier rheology, Chebyshev analysis, stress bifurcation, sequence of physical processes (SPP), Lissajous curves, dissipation analysis, and cage-modulus calculations. Results should be interpreted together with experimental conditions and the assumptions of each method.
+The software is designed for researchers working with soft materials and complex fluids, including polymer solutions, suspensions, gels, and food materials. It includes Fourier rheology, Chebyshev analysis, stress bifurcation, sequence of physical processes analysis, Lissajous curves, dissipation analysis, and cage-modulus calculations.
 
 ## Features
 
-| Area | Capabilities |
+| Area | Main functions |
 | --- | --- |
-| Data preparation | Instrument-specific HAAKE/TA workflows, data segmentation, cycle selection, denoising, phase alignment, and Fourier analysis |
-| Waveform visualization | Lissajous curves, normalized representations, and overlays across selected test points |
-| Harmonic analysis | Single- and multiple-order Fourier coefficients; Chebyshev-based S and T measures |
-| Yielding and dissipation | Stress-bifurcation analysis, dissipation ratio, and cage modulus |
-| Intra-cycle analysis | SPP plots and overlays; analytical (Fourier) and numerical (gradient) calculation modes; circular decomposition |
-| Presentation | Interactive plots, adjustable styles, figure export, and multilingual interface |
-| Learning materials | Six example datasets, English and Chinese manuals, and ten demonstration videos |
+| Data preparation | HAAKE and TA workflows, data segmentation, cycle selection, denoising, phase alignment, and Fourier analysis |
+| Waveform visualization | Lissajous curves, normalized plots, and overlays across selected test points |
+| Harmonic analysis | Single-order and multi-order Fourier coefficients, plus Chebyshev-based S and T values |
+| Yielding and dissipation | Stress bifurcation, dissipation ratio, and cage modulus |
+| Intra-cycle analysis | SPP plots, analytical and numerical calculation modes, and circular decomposition |
+| Output | Interactive plots, adjustable styles, figure export, and multilingual interface |
+
+## Download
+
+There are three common ways to use this repository.
+
+| Need | Recommended route |
+| --- | --- |
+| Run the software directly | Download `LAOS-Analysis-V1.0-Windows-x64.zip` from the [v1.0 release](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/tag/v1.0). This package contains `LAOS_Analysis.exe`, the required runtime, manuals, and example data. |
+| Read or modify the source code | Browse the [`src/`](src/) folder, clone the repository, or use GitHub's green **Code** button. |
+| Use the example data | Browse [`examples/Test Data/`](examples/Test%20Data/) in the repository, clone the repository, or download `LAOS-Analysis-V1.0-Examples.zip` from the release page. |
+
+GitHub's automatically generated **Source code** archives contain the repository files, including the source code and example data. They do not contain the full Windows runtime package. To run the packaged application, use the Windows ZIP from the release page.
 
 ## Installation
 
+For normal use on Windows:
+
 1. Download [LAOS-Analysis-V1.0-Windows-x64.zip](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/download/v1.0/LAOS-Analysis-V1.0-Windows-x64.zip).
-2. Extract the **entire ZIP** into a writable local directory.
-3. Open the extracted `LAOS-Analysis-V1.0` folder and launch `LAOS_Analysis.exe`.
-4. Keep `_internal` in the same directory as the executable.
+2. Extract the entire ZIP into a writable local folder.
+3. Open the extracted `LAOS-Analysis-V1.0` folder.
+4. Run `LAOS_Analysis.exe`.
+5. Keep `_internal` in the same folder as the executable.
 
-This is a portable **64-bit Windows** distribution. Python and the runtime dependencies are bundled, so no separate Python installation or `pip install` step is required. Allow roughly 2 GB of free space for the extracted application and additional space for working data and results. This is a storage allowance, not a measured minimum system requirement.
+The Windows package includes Python and the required runtime libraries. Users do not need to install Python separately.
 
-Use the named **Windows ZIP** above. GitHub's automatically generated **Source code** archives contain this documentation repository and do not contain the complete Windows application. See [installation and troubleshooting](docs/INSTALLATION.md).
+To run from source, install Python 3.8 or a compatible Python 3 version, install the packages in [`requirements.txt`](requirements.txt), then run:
 
-## Quick start
+```bash
+python src/main.py
+```
 
-1. Make a working copy of `Test Data/Test Data HAAKE/2%` from the application package.
-2. Open the application and select that sample folder, which contains numbered TXT files and its `fourier_coefficients` subfolder.
-3. Select one of the available numbered test points and choose the Lissajous plotting function.
-4. Generate the plot, inspect axis labels and units, then adjust the style and export a figure.
-5. Follow the [Lissajous demonstration](videos/README.md) and try the harmonic, dissipation, or SPP workflows using the same sample.
+The source tree is provided for transparency, review, and further development. The tested end-user distribution is the Windows package on the release page.
 
-The bundled numbered files are already processed examples. To start from raw measurements, copy the original HAAKE TXT or TA Excel input into a separate working folder and follow [the preprocessing tutorial](docs/GETTING-STARTED.md). Enter the actual acquisition frequency and use consistent stress and strain units.
+## Quick Start
 
-## Data formats
+1. Start the packaged application.
+2. Copy one sample folder from `examples/Test Data/` or from the `Test Data` folder inside the Windows package.
+3. Select a folder that directly contains numbered TXT files, such as `Test Data HAAKE/2%`.
+4. Choose one numbered test point.
+5. Generate a Lissajous plot, inspect the axis labels and units, then export the figure.
+6. Follow the [video tutorials](videos/README.md) for Fourier coefficients, dissipation ratio, stress bifurcation, SPP plotting, and cage modulus.
+
+The included numbered TXT files are processed examples. To start from raw measurements, copy the original HAAKE TXT export or TA Excel workbook into a separate working folder and follow the manual.
+
+## Data Formats
 
 | Input | Expected organization |
 | --- | --- |
-| HAAKE raw export | TXT blocks containing `Datapoint no.:` markers and the exported signal columns; retain the instrument export structure |
-| TA raw export | One `.xls` or `.xlsx` workbook in the working folder; sheets named `Sine Strain -<number>` with `Stress` and `Strain` columns on Excel row 2 |
-| Processed signal | Numerically named files such as `000.txt` or `01.txt`, with whitespace-separated numeric columns: index/time coordinate, stress, strain, and strain rate when available |
-| Fourier coefficients | Matching numbered files in `fourier_coefficients/`; preserve the generated column order and names |
+| HAAKE raw export | TXT blocks containing `Datapoint no.:` markers and the exported signal columns |
+| TA raw export | One `.xls` or `.xlsx` workbook in the working folder, with sheets named `Sine Strain -<number>` |
+| Processed signal | Numbered files such as `000.txt` or `01.txt`, with numeric columns for the processed waveform |
+| Fourier coefficients | Matching numbered files in `fourier_coefficients/`, using the generated coefficient layout |
 
-File layout and units matter. A generic CSV or arbitrary Excel table is not automatically equivalent to one of these layouts. Read the [data-format reference](docs/DATA-FORMATS.md) before preparing your own files.
+See [docs/DATA-FORMATS.md](docs/DATA-FORMATS.md) for details. File layout and units matter. A generic CSV or arbitrary Excel table is not automatically equivalent to one of the supported formats.
 
-## Examples, manuals, and videos
-
-| Resource | Link |
-| --- | --- |
-| Complete Windows application, examples, and manuals | [Windows ZIP](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/download/v1.0/LAOS-Analysis-V1.0-Windows-x64.zip) |
-| Six HAAKE/TA example datasets separately | [Examples ZIP](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/download/v1.0/LAOS-Analysis-V1.0-Examples.zip) · [Dataset guide](examples/README.md) |
-| English user manual | [PDF](docs/User-Manual-EN.pdf) |
-| Chinese user manual | [PDF](docs/User-Manual-ZH.pdf) |
-| Ten original demonstration videos | [Video index](videos/README.md) |
-| Download integrity | [SHA256SUMS.txt](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/download/v1.0/SHA256SUMS.txt) |
-
-## Project structure
+## Project Structure
 
 ```text
 LAOS-Analysis-Software/
-├── README.md                 English project homepage
-├── README.zh-CN.md           Chinese introduction
-├── CHANGELOG.md              Release history
-├── CITATION.cff              Software citation metadata
-├── COPYRIGHT.md             Copyright and existing notices
-├── docs/
-│   ├── INSTALLATION.md       Installation and troubleshooting
-│   ├── GETTING-STARTED.md    First plot and preprocessing workflow
-│   ├── DATA-FORMATS.md       Input layouts and units
-│   ├── DEPENDENCIES.md       Runtime component overview
-│   ├── RELEASE-CONTENTS.md  Distribution contents
-│   ├── User-Manual-EN.pdf
-│   └── User-Manual-ZH.pdf
-├── examples/
-│   ├── README.md             Dataset descriptions and download link
-│   └── data-manifest.csv     File list and individual checksums
-└── videos/
-    └── README.md             Ten video download links
+  src/                    source code and application resources
+  examples/
+    Test Data/            bundled HAAKE and TA example datasets
+    data-manifest.csv     file list and SHA-256 checksums
+  docs/                   manuals and technical notes
+  videos/                 links to the demonstration videos
+  README.md               English project guide
+  README.zh-CN.md         Chinese project guide
+  requirements.txt        source-run dependencies
+  CITATION.cff            citation metadata
+  LICENSE                 CC BY 4.0 license notice
 ```
 
-The extracted Windows ZIP contains `LAOS_Analysis.exe`, `_internal/`, `Test Data/`, and the documentation. Large application and video files are provided as release assets. This repository is the distribution and documentation home; it does not currently provide a supported source-build workflow.
+The executable Windows package is not stored directly in the Git tree. It is provided through GitHub Releases because it contains the runtime environment and is much larger than normal source files.
 
 ## Dependencies
 
-The packaged application uses Python, PyQt5/Qt, PyQtGraph, NumPy, pandas, SciPy, Matplotlib, Plotly, and supporting libraries for graphics, Excel reading, and export. These components are shipped with the Windows package. Users do not need to install them independently. See [the dependency overview](docs/DEPENDENCIES.md) for their roles.
+The source code uses PyQt5, PyQtGraph, NumPy, pandas, SciPy, Matplotlib, Plotly, and PyOpenGL. See [`requirements.txt`](requirements.txt) and [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md).
 
-## Authors and affiliation
+The packaged Windows application already includes its runtime dependencies.
 
-- **Ziyu Zhou** — [GitHub: ZhouZiyuMizar](https://github.com/ZhouZiyuMizar)
-- **Hongbin Zhang** — hbzhang@sjtu.edu.cn
+## License and Citation
 
-**Advanced Rheology Institute, Shanghai Jiao Tong University.** Author names and institutional attribution follow the supplied English user manual.
+This repository is released under the Creative Commons Attribution 4.0 International License. See [LICENSE](LICENSE).
 
-## Citation
+If you use this software, source code, documentation, or example data in academic work, please cite **LAOS Analysis Software, v1.0** using [CITATION.cff](CITATION.cff) or GitHub's **Cite this repository** feature.
 
-If you use the software in research, please cite **LAOS Analysis Software, v1.0** using [CITATION.cff](CITATION.cff) or GitHub's **Cite this repository** feature. Cite the original methodological literature relevant to your analysis as well; references are available in the manuals.
+## Authors and Affiliation
 
-## Support and reproducibility
+- Ziyu Zhou, [GitHub: ZhouZiyuMizar](https://github.com/ZhouZiyuMizar)
+- Hongbin Zhang, hbzhang@sjtu.edu.cn
 
-Please report issues through [GitHub Issues](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/issues). Include the software version, Windows environment, selected method and parameters, error message, and a small reproducible input when possible. Record acquisition frequency, units, selected cycles, preprocessing choices, and harmonic settings when reporting analysis results.
+Advanced Rheology Institute, Shanghai Jiao Tong University.
 
-Existing example outputs are supplied as reference files; they are not a new validation dataset generated for this release. See [release history](CHANGELOG.md).
+## Support
 
-## Copyright
-
-See [COPYRIGHT.md](COPYRIGHT.md). Existing copyright and third-party notices are retained. This distribution does not introduce a new open-source license.
+Please report issues through [GitHub Issues](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/issues). Include the software version, Windows environment, selected method and parameters, error message, and a small reproducible input when possible.
