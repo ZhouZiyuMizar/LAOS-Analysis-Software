@@ -1,5 +1,9 @@
 # v1.01 Packaging Details
 
+The v1.01 Windows ZIP is distributed as twelve release-asset parts because of
+the large package size. Download all parts and `JOIN-Windows-Package.cmd`, run
+the command file, and then extract the reconstructed ZIP.
+
 The Windows ZIP contains `LAOS_Analysis.exe` and its required `_internal`
 runtime. The package also includes the selected example data and both PDF
 manuals.

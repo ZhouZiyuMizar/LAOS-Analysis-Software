@@ -5,6 +5,7 @@
 - Replaces the previous Windows distribution with the v1.01 application package.
 - Includes the corresponding raw HAAKE and TA example files in the Windows package and separate example-data download.
 - Updates repository download links, installation instructions, citation metadata, and bilingual version references.
+- Distributes the large Windows ZIP as twelve downloadable parts with a Windows merge script.
 
 ## v1.0, 2026-10-09
 
