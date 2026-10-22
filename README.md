@@ -27,7 +27,7 @@ There are three common ways to use this repository.
 
 | Need | Recommended route |
 | --- | --- |
-| Run the software directly | Download `LAOS-Analysis-V1.01-Windows-x64.zip` from the [v1.01 release](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/tag/v1.01). This package contains `LAOS_Analysis.exe`, the required runtime, manuals, and example data. |
+| Run the software directly | Download all twelve `LAOS-Analysis-V1.01-Windows-x64.zip.001`–`.012` files and `JOIN-Windows-Package.cmd` from the [v1.01 release](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/tag/v1.01). Run the CMD file to rebuild the complete ZIP, then extract it. |
 | Read or modify the source code | Browse the [`src/`](src/) folder, clone the repository, or use GitHub's green **Code** button. |
 | Use the example data | Browse [`examples/Test Data/`](examples/Test%20Data/) in the repository, clone the repository, or download `LAOS-Analysis-V1.01-Examples.zip` from the release page. |
 
@@ -37,10 +37,10 @@ GitHub's automatically generated **Source code** archives contain the repository
 
 For normal use on Windows:
 
-1. Download [LAOS-Analysis-V1.01-Windows-x64.zip](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/download/v1.01/LAOS-Analysis-V1.01-Windows-x64.zip).
-2. Extract the entire ZIP into a writable local folder.
-3. Open the extracted `LAOS-Analysis-V1.01` folder.
-4. Run `LAOS_Analysis.exe`.
+1. Download all twelve Windows ZIP parts and `JOIN-Windows-Package.cmd` from the [v1.01 release](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/tag/v1.01).
+2. Place the parts and CMD file in one folder, then run `JOIN-Windows-Package.cmd`.
+3. Extract the resulting `LAOS-Analysis-V1.01-Windows-x64.zip` into a writable local folder.
+4. Open the extracted `LAOS-Analysis-V1.01` folder and run `LAOS_Analysis.exe`.
 5. Keep `_internal` in the same folder as the executable.
 
 The Windows package includes Python and the required runtime libraries. Users do not need to install Python separately.
