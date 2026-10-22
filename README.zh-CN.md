@@ -1,8 +1,8 @@
 # LAOS Analysis Software
 
-**v1.0，Windows x64 桌面软件，用于 LAOS 非线性流变数据分析**
+**v1.01，Windows x64 桌面软件，用于 LAOS 非线性流变数据分析**
 
-[English README](README.md) | [下载 Windows 软件](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/tag/v1.0) | [查看源码](src/) | [示例数据](examples/Test%20Data/) | [中文说明书](docs/User-Manual-ZH.pdf)
+[English README](README.md) | [下载 Windows 软件](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/tag/v1.01) | [查看源码](src/) | [示例数据](examples/Test%20Data/) | [中文说明书](docs/User-Manual-ZH.pdf)
 
 ## 概述
 
@@ -27,7 +27,7 @@ LAOS Analysis Software 是用于大振幅振荡剪切实验数据处理和分析
 
 | 需求 | 推荐方式 |
 | --- | --- |
-| 直接运行软件 | 从 [v1.0 Release](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/tag/v1.0) 下载 `LAOS-Analysis-V1.0-Windows-x64.zip`。这个包包含 `LAOS_Analysis.exe`、运行库、说明书和示例数据。 |
+| 直接运行软件 | 从 [v1.01 Release](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/tag/v1.01) 下载 `LAOS-Analysis-V1.01-Windows-x64.zip`。这个包包含 `LAOS_Analysis.exe`、运行库、说明书和示例数据。 |
 | 查看或修改源码 | 直接浏览 [`src/`](src/)，克隆仓库，或使用 GitHub 页面上的绿色 **Code** 按钮下载仓库。 |
 | 使用示例数据 | 直接浏览 [`examples/Test Data/`](examples/Test%20Data/)，克隆仓库，或从 Release 页面下载单独的示例数据包。 |
 
@@ -37,9 +37,9 @@ GitHub 自动生成的 **Source code** 压缩包包含本仓库中的源码和�
 
 普通 Windows 用户建议使用打包版本：
 
-1. 下载 [LAOS-Analysis-V1.0-Windows-x64.zip](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/download/v1.0/LAOS-Analysis-V1.0-Windows-x64.zip)。
+1. 下载 [LAOS-Analysis-V1.01-Windows-x64.zip](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/download/v1.01/LAOS-Analysis-V1.01-Windows-x64.zip)。
 2. 将整个 ZIP 解压到可写的本地文件夹。
-3. 打开解压后的 `LAOS-Analysis-V1.0` 文件夹。
+3. 打开解压后的 `LAOS-Analysis-V1.01` 文件夹。
 4. 运行 `LAOS_Analysis.exe`。
 5. 保持 `_internal` 文件夹和可执行文件在同一目录下。
 
@@ -99,7 +99,7 @@ LAOS-Analysis-Software/
 
 本仓库使用 Creative Commons Attribution 4.0 International License，见 [LICENSE](LICENSE)。
 
-如果你在论文、报告或其他学术工作中使用本软件、源码、文档或示例数据，请引用 **LAOS Analysis Software, v1.0**。引用格式见 [CITATION.cff](CITATION.cff)，也可以使用 GitHub 的 **Cite this repository** 功能。
+如果你在论文、报告或其他学术工作中使用本软件、源码、文档或示例数据，请引用 **LAOS Analysis Software, v1.01**。引用格式见 [CITATION.cff](CITATION.cff)，也可以使用 GitHub 的 **Cite this repository** 功能。
 
 ## 作者和单位
 

@@ -2,7 +2,7 @@
 
 ## Recommended Windows Package
 
-Download [the v1.0 Windows ZIP](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/download/v1.0/LAOS-Analysis-V1.0-Windows-x64.zip), extract it fully, and run `LAOS_Analysis.exe`.
+Download [the v1.01 Windows ZIP](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/download/v1.01/LAOS-Analysis-V1.01-Windows-x64.zip), extract it fully, and run `LAOS_Analysis.exe`.
 
 Keep `_internal` in the same folder as the executable. Do not run the software
 from inside an archive viewer. Choose a writable location for working data and
@@ -43,7 +43,7 @@ preferences or system language choose another language.
 | Symptom | Check |
 | --- | --- |
 | Missing DLL or runtime error | Extract the full Windows ZIP again and ensure `_internal` remains beside the EXE |
-| No EXE in the download | Use `LAOS-Analysis-V1.0-Windows-x64.zip`, not GitHub's automatic source archive |
+| No EXE in the download | Use `LAOS-Analysis-V1.01-Windows-x64.zip`, not GitHub's automatic source archive |
 | No files shown | Select one sample folder containing numbered TXT files, rather than the parent `Test Data` folder |
 | TA worksheet not recognized | Keep one workbook in the working folder and check the worksheet/header layout in [Data formats](DATA-FORMATS.md) |
 | Export or processing cannot write files | Move the working data to a writable folder and confirm the output is not open in another program |
@@ -52,10 +52,10 @@ preferences or system language choose another language.
 
 ## Verify a Download
 
-Compare the ZIP's SHA-256 hash with [SHA256SUMS.txt](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/download/v1.0/SHA256SUMS.txt).
+Compare the ZIP's SHA-256 hash with [SHA256SUMS.txt](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/download/v1.01/SHA256SUMS.txt).
 
 In PowerShell:
 
 ```powershell
-Get-FileHash -Algorithm SHA256 -LiteralPath '.\LAOS-Analysis-V1.0-Windows-x64.zip'
+Get-FileHash -Algorithm SHA256 -LiteralPath '.\LAOS-Analysis-V1.01-Windows-x64.zip'
 ```

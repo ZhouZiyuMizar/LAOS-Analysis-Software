@@ -1,4 +1,4 @@
-# v1.0 Packaging Details
+# v1.01 Packaging Details
 
 The Windows ZIP contains `LAOS_Analysis.exe` and its required `_internal`
 runtime. The package also includes the selected example data and both PDF
