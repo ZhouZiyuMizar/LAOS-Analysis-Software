@@ -36,6 +36,5 @@ See [Data formats](DATA-FORMATS.md) for the exact layout and [the dataset guide]
 - Use Fourier and Chebyshev outputs to examine harmonic content and nonlinear elastic/viscous measures.
 - Use stress bifurcation and dissipation outputs for their respective yielding and energy-based descriptions.
 - Use SPP for intra-cycle trajectories; record whether the analytical/Fourier or numerical/gradient mode was selected. The modes use different differentiation routes and should not be assumed to produce identical results under every condition.
-- Use circular decomposition to inspect rotating components of an SPP trajectory.
 
 For a reproducible report, record the source file, instrument/export format, units, frequency, selected cycles, preprocessing choices, method, harmonic settings, and software version. Full method explanations and references are in the [English manual](User-Manual-EN.pdf).

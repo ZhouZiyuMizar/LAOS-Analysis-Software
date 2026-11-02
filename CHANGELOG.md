@@ -15,6 +15,6 @@
 - Adds browsable example data under `examples/Test Data/`.
 - Includes six selected HAAKE/TA example datasets, Chinese and English PDF manuals, and ten demonstration videos.
 - Adds CC BY 4.0 licensing, citation metadata, bilingual README files, and SHA-256 checksums.
-- Includes SPP analytical/numerical modes and circular decomposition.
+- Includes SPP analytical and numerical calculation modes.
 
 Existing example outputs are provided as reference files, not as newly recomputed validation results.

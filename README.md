@@ -18,7 +18,7 @@ The software is designed for researchers working with soft materials and complex
 | Waveform visualization | Lissajous curves, normalized plots, and overlays across selected test points |
 | Harmonic analysis | Single-order and multi-order Fourier coefficients, plus Chebyshev-based S and T values |
 | Yielding and dissipation | Stress bifurcation, dissipation ratio, and cage modulus |
-| Intra-cycle analysis | SPP plots, analytical and numerical calculation modes, and circular decomposition |
+| Intra-cycle analysis | SPP plots and analytical or numerical calculation modes |
 | Output | Interactive plots, adjustable styles, figure export, and multilingual interface |
 
 ## Download
