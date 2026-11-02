@@ -111,22 +111,6 @@
         <translation>後半</translation>
     </message>
     <message>
-        <source>Trajectory:</source>
-        <translation>軌跡:</translation>
-    </message>
-    <message>
-        <source>G′ₜ - G″ₜ (Cole-Cole)</source>
-        <translation>G′ₜ - G″ₜ (Cole-Cole)</translation>
-    </message>
-    <message>
-        <source>dG′ₜ/dt - dG″ₜ/dt</source>
-        <translation>dG′ₜ/dt - dG″ₜ/dt</translation>
-    </message>
-    <message>
-        <source>Choose which SPP trajectory to decompose into rotating circles</source>
-        <translation>回転円に分解するSPP軌跡を選択</translation>
-    </message>
-    <message>
         <source>Title Options:</source>
         <translation>タイトルオプション:</translation>
     </message>
@@ -249,8 +233,8 @@
 <context>
     <name>CageSubtypes</name>
     <message>
-        <source>G'/G_cage vs Strain</source>
-        <translation>G'/G_cage vs 歪み</translation>
+        <source>G_cage/G′_lin vs Strain</source>
+        <translation>G_cage/G′_lin vs 歪み</translation>
     </message>
     <message>
         <source>G_cage vs Strain</source>
@@ -266,6 +250,10 @@
     <message>
         <source>Q Value</source>
         <translation>Q値</translation>
+    </message>
+    <message>
+        <source>Phase Angle Change</source>
+        <translation>位相角変化</translation>
     </message>
 </context>
 <context>
@@ -297,10 +285,6 @@
         <source>Multi-File Overlay</source>
         <translation>複数ファイルオーバーレイ</translation>
     </message>
-    <message>
-        <source>Circular Decomposition</source>
-        <translation>円運動分解</translation>
-    </message>
 </context>
 <context>
     <name>ParamTooltips</name>
@@ -327,6 +311,10 @@
     <message>
         <source>Select data range for plotting</source>
         <translation>プロット用のデータ範囲を選択</translation>
+    </message>
+    <message>
+        <source>Auto: keep odd harmonics while In/I1 &gt;= 1e-3 and In &gt;= 5x noise floor (n=3 always kept); Manual: enter N</source>
+        <translation>自動：In/I1 ≥ 1e-3 かつ In ≥ ノイズフロアの5倍の奇数高調波を保持（3次高調波 n=3 は常に保持）；手動：次数 N を入力</translation>
     </message>
 </context>
 <context>
@@ -1098,6 +1086,10 @@ HTMLエクスポートの利点：
         <translation>Q値</translation>
     </message>
     <message>
+        <source>Phase Angle Change</source>
+        <translation>位相角変化</translation>
+    </message>
+    <message>
         <source>Multi-Order Fourier Coefficients</source>
         <translation>多次数フーリエ係数</translation>
     </message>
@@ -1126,8 +1118,8 @@ HTMLエクスポートの利点：
         <translation>ケージモジュラス</translation>
     </message>
     <message>
-        <source>G'/G_cage vs Strain</source>
-        <translation>G'/G_cage vs 歪み</translation>
+        <source>G_cage/G′_lin vs Strain</source>
+        <translation>G_cage/G′_lin vs 歪み</translation>
     </message>
     <message>
         <source>G_cage vs Strain</source>
@@ -1242,6 +1234,10 @@ HTMLエクスポートの利点：
     <message>
         <source>Q Value</source>
         <translation>Q値</translation>
+    </message>
+    <message>
+        <source>Fourier Phase Angle</source>
+        <translation>フーリエ位相角</translation>
     </message>
     <message>
         <source>Harmonic n</source>
@@ -1359,6 +1355,10 @@ Excelにエクスポートできません。</translation>
     <message>
         <source>Ziyu Zhou, Hongbin Zhang</source>
         <translation>周子愉，张洪斌</translation>
+    </message>
+    <message>
+        <source>Software Copyright Registration No.</source>
+        <translation>ソフトウェア著作権登録番号</translation>
     </message>
     <message>
         <source>Contact</source>

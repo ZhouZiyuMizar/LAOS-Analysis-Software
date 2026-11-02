@@ -138,44 +138,6 @@ class DataTableWidget(QWidget):
         self._populate_table(data, headers)
         self.info_label.setText(tr(f"Total {len(data)} data points", "DataTable"))
 
-    def show_spp_circular_data(self, file_number: str, component: str, components, mean, residual):
-        """Show circular decomposition components (radius / frequency / direction)."""
-        comp_label = "dG′ₜ/dt - dG″ₜ/dt" if component == "Gt_deriv" else "G′ₜ - G″ₜ"
-        self._current_title = f"Circular Decomposition - File {file_number} ({comp_label})"
-        self.title_label.setText(self._current_title)
-        headers = [
-            tr("Harmonic n", "DataTable"),
-            tr("ω (rad/s)", "DataTable"),
-            tr("Direction", "DataTable"),
-            tr("Radius |c|", "DataTable"),
-            tr("Phase (deg)", "DataTable"),
-            tr("Real", "DataTable"),
-            tr("Imag", "DataTable")]
-        rows = []
-        for c in components:
-            rows.append([
-                c['n'],
-                c['omega'],
-                "CCW" if c['direction'] == 'ccw' else "CW",
-                c['radius'],
-                c['phase_deg'],
-                c['real'],
-                c['imag'],
-            ])
-        if rows:
-            arr = np.array([[r[0], r[1], 1 if r[2] == "CCW" else -1, r[3], r[4], r[5], r[6]]
-                            for r in rows], dtype=object)
-        else:
-            arr = np.empty((0, 7))
-        self._populate_table(arr, headers)
-        self.info_label.setText(
-            tr(f"Total {len(rows)} components, residual {residual*100:.3g}%", "DataTable"))
-
-        def show_spp_multi_data(self, file_numbers, folder_path):
-            pass
-
-
-
     def show_fourier_multi(self, file_list, max_harmonic, folder_path):
         """
         Show multi-file Fourier coefficients Iₙ/I₁ data
@@ -260,6 +222,25 @@ class DataTableWidget(QWidget):
             tr("Strain (γ₀)", "DataTable"),
             tr("Q Value", "DataTable")]
         display_data = np.column_stack([strain_values, q_values])
+        self._populate_table(display_data, headers)
+        self.info_label.setText(tr(f"Total {len(strain_values)} data points", "DataTable"))
+
+    def show_fourier_phase(self, strain_values, phase_values, harmonic_n):
+        """
+        Show Fourier harmonic phase angle data (相位角变化)
+
+        Args:
+            strain_values: Array of strain amplitudes
+            phase_values: Array of phase angles delta_n in degrees
+            harmonic_n: Harmonic number n
+        """
+        sub_n = self._get_subscript(harmonic_n)
+        self._current_title = tr("Fourier Phase Angle", "DataTable") + f" (n={harmonic_n})"
+        self.title_label.setText(self._current_title)
+        headers = [
+            tr("Strain (γ)", "DataTable"),
+            f"δ{sub_n} (°)"]
+        display_data = np.column_stack([strain_values, phase_values])
         self._populate_table(display_data, headers)
         self.info_label.setText(tr(f"Total {len(strain_values)} data points", "DataTable"))
 
@@ -350,20 +331,36 @@ class DataTableWidget(QWidget):
         self._populate_table(display_data, headers)
         self.info_label.setText(tr(f"Total {len(strain)} data points", "DataTable"))
 
-    def show_cage_modulus(self, strain: np.ndarray, G_ratio: np.ndarray):
+    def show_cage_modulus(self, strain: np.ndarray, G_ratio: np.ndarray,
+                          G_cage: np.ndarray = None, G_prime: np.ndarray = None,
+                          G_lin: float = None):
         """
         Show cage modulus data
 
         Args:
             strain: Strain values
-            G_ratio: G'/G_cage ratio values
+            G_ratio: G_cage/G'_lin values (G'_lin fixed at the linear-region
+                     elastic modulus)
+            G_cage: Optional G_cage values per strain point
+            G_prime: Optional per-point G' values (for reference)
+            G_lin: Optional linear-region modulus G'_lin (fixed constant)
         """
-        self._current_title = "Cage Modulus"
+        title = "Cage Modulus  (G_cage/G′_lin)"
+        if G_lin is not None and np.isfinite(G_lin) and G_lin > 0:
+            title += f"   [G′_lin = {G_lin:.4g} Pa]"
+        self._current_title = title
         self.title_label.setText(self._current_title)
         headers = [
             tr("Strain", "DataTable"),
-            tr("$G'/G_{cage}$", "DataTable")]
-        display_data = np.column_stack([strain, G_ratio])
+            tr("G_cage/G′_lin", "DataTable")]
+        columns = [strain, G_ratio]
+        if G_cage is not None:
+            headers.append(tr("G_cage (Pa)", "DataTable"))
+            columns.append(G_cage)
+        if G_prime is not None:
+            headers.append(tr("G′ (Pa)", "DataTable"))
+            columns.append(G_prime)
+        display_data = np.column_stack(columns)
         self._populate_table(display_data, headers)
         self.info_label.setText(tr(f"Total {len(strain)} data points", "DataTable"))
 
@@ -375,11 +372,11 @@ class DataTableWidget(QWidget):
             strain: Strain values
             G_cage: G_cage values
         """
-        self._current_title = "Cage Modulus ($G_{cage}$)"
+        self._current_title = "Cage Modulus  (G_cage)"
         self.title_label.setText(self._current_title)
         headers = [
             tr("Strain", "DataTable"),
-            tr("$G_{cage}$ (Pa)", "DataTable")]
+            tr("G_cage (Pa)", "DataTable")]
         display_data = np.column_stack([strain, G_cage])
         self._populate_table(display_data, headers)
         self.info_label.setText(tr(f"Total {len(strain)} data points", "DataTable"))
@@ -667,10 +664,6 @@ class PlotDataViewer(QWidget):
         self.data_table.show_spp_data(file_number, data)
         self.show()
 
-    def show_spp_circular_data(self, file_number, component, components, mean, residual):
-        self.data_table.show_spp_circular_data(file_number, component, components, mean, residual)
-        self.show()
-
     def show_contact_stress(self, file_number, strain, stress, sigma_H, sigma_C):
         self.data_table.show_contact_stress(file_number, strain, stress, sigma_H, sigma_C)
         self.show()
@@ -685,6 +678,10 @@ class PlotDataViewer(QWidget):
 
     def show_fourier_ratio(self, strain_values, ratio_values, harmonics):
         self.data_table.show_fourier_ratio(strain_values, ratio_values, harmonics)
+        self.show()
+
+    def show_fourier_phase(self, strain_values, phase_values, harmonic_n):
+        self.data_table.show_fourier_phase(strain_values, phase_values, harmonic_n)
         self.show()
 
     def show_spp_multi_data(self, file_numbers, folder_path):

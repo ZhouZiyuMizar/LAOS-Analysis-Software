@@ -371,7 +371,6 @@ class LissajousPlotWidget(QWidget):
         n_curves = len(data_list)
         cmap = cm.get_cmap(colormap)
         curve_colors = cmap(np.linspace(0.2, 0.9, n_curves))
-        line_styles = ['-', '--', '-.', ':']
         for i, (data, title) in enumerate(zip(data_list, legend_titles)):
             if data is None or data.shape[1] < 4:
                 continue
@@ -379,9 +378,8 @@ class LissajousPlotWidget(QWidget):
             strain = data[:, 2]
             strain_rate = data[:, 3]
             color = curve_colors[i]
-            style = line_styles[i % len(line_styles)]
-            self.ax_elastic.plot(strain, stress, color=color, linewidth=line_width, linestyle=style, label=title, alpha=0.85)
-            self.ax_viscous.plot(strain_rate, stress, color=color, linewidth=line_width, linestyle=style, label=title, alpha=0.85)
+            self.ax_elastic.plot(strain, stress, color=color, linewidth=line_width, linestyle='-', label=title, alpha=0.85)
+            self.ax_viscous.plot(strain_rate, stress, color=color, linewidth=line_width, linestyle='-', label=title, alpha=0.85)
         self.ax_elastic.set_xlabel('Strain', fontweight='bold')
         self.ax_elastic.set_ylabel('Stress', fontweight='bold')
         self.ax_elastic.set_title('Elastic Overlay', fontweight='bold')
@@ -409,15 +407,13 @@ class LissajousPlotWidget(QWidget):
         n_curves = len(data_list)
         cmap = cm.get_cmap(colormap)
         curve_colors = cmap(np.linspace(0.2, 0.9, n_curves))
-        line_styles = ['-', '--', '-.', ':']
         for i, (data, title) in enumerate(zip(data_list, legend_titles)):
             if data is None or data.shape[1] < 4:
                 continue
             stress = data[:, 1]
             strain = data[:, 2]
             color = curve_colors[i]
-            style = line_styles[i % len(line_styles)]
-            self.ax_elastic.plot(strain, stress, color=color, linewidth=line_width, linestyle=style, label=title, alpha=0.85)
+            self.ax_elastic.plot(strain, stress, color=color, linewidth=line_width, linestyle='-', label=title, alpha=0.85)
         self.ax_elastic.set_xlabel('Strain', fontweight='bold')
         self.ax_elastic.set_ylabel('Stress', fontweight='bold')
         self.ax_elastic.set_title('Elastic Lissajous Overlay', fontweight='bold')
@@ -440,15 +436,13 @@ class LissajousPlotWidget(QWidget):
         n_curves = len(data_list)
         cmap = cm.get_cmap(colormap)
         curve_colors = cmap(np.linspace(0.2, 0.9, n_curves))
-        line_styles = ['-', '--', '-.', ':']
         for i, (data, title) in enumerate(zip(data_list, legend_titles)):
             if data is None or data.shape[1] < 4:
                 continue
             stress = data[:, 1]
             strain_rate = data[:, 3]
             color = curve_colors[i]
-            style = line_styles[i % len(line_styles)]
-            self.ax_viscous.plot(strain_rate, stress, color=color, linewidth=line_width, linestyle=style, label=title, alpha=0.85)
+            self.ax_viscous.plot(strain_rate, stress, color=color, linewidth=line_width, linestyle='-', label=title, alpha=0.85)
         self.ax_viscous.set_xlabel('Strain Rate (s⁻¹)', fontweight='bold')
         self.ax_viscous.set_ylabel('Stress', fontweight='bold')
         self.ax_viscous.set_title('Viscous Lissajous Overlay', fontweight='bold')

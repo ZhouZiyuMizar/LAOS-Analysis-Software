@@ -10,6 +10,15 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Custom mathtext fonts (Times New Roman).  They are only used by text objects
+# that request the 'custom' math font family (set_math_fontfamily('custom')), so
+# their mathtext glyphs match the plain-text Times New Roman labels, while other
+# plots keep the default 'stix' math font.
+plt.rcParams['mathtext.rm'] = 'Times New Roman'
+plt.rcParams['mathtext.it'] = 'Times New Roman:italic'
+plt.rcParams['mathtext.bf'] = 'Times New Roman:bold'
+plt.rcParams['mathtext.sf'] = 'Arial'
+
 SUBSCRIPT_DIGITS = ['₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉']
 SUBSCRIPT_LETTERS = {
     'a': 'ₐ', 'e': 'ₑ', 'h': 'ₕ', 'i': 'ᵢ', 'j': 'ᵢ', 'k': 'ₖ', 'l': 'ₗ', 
@@ -352,8 +361,10 @@ def format_variable(name: str) -> str:
         'I_1': 'I₁',
         'G_L': "G′ₗ",
         'G_M': "G′ₘ",
-        'G_cage': r'$\rm{G}_{\rm{cage}}$',
-        'G_prime_over_G_cage': r"$\rm{G}'/\rm{G}_{\rm{cage}}$",
+        'G_cage': r'$\mathrm{G}_{\mathrm{cage}}$',
+        'G_prime_over_G_cage': r"$\mathrm{G}^{\prime}/\mathrm{G}_{\mathrm{cage}}$",
+        'G_prime_lin': "G′ₗᵢₙ",
+        'G_cage_over_G_prime_lin': r"$\mathrm{G}_{\mathrm{cage}}$/G′ₗᵢₙ",
         'In_I1': 'Iₙ/I₁',
     }
     return var_map.get(name, f'$\boldsymbol{name}$')

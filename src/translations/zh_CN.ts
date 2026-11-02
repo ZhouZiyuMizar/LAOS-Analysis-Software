@@ -115,22 +115,6 @@
         <translation>后半部分</translation>
     </message>
     <message>
-        <source>Trajectory:</source>
-        <translation>轨迹:</translation>
-    </message>
-    <message>
-        <source>G′ₜ - G″ₜ (Cole-Cole)</source>
-        <translation>G′ₜ - G″ₜ (Cole-Cole)</translation>
-    </message>
-    <message>
-        <source>dG′ₜ/dt - dG″ₜ/dt</source>
-        <translation>dG′ₜ/dt - dG″ₜ/dt</translation>
-    </message>
-    <message>
-        <source>Choose which SPP trajectory to decompose into rotating circles</source>
-        <translation>选择要分解为旋转圆的 SPP 轨迹</translation>
-    </message>
-    <message>
         <source>Title Options:</source>
         <translation>标题选项:</translation>
     </message>
@@ -253,8 +237,8 @@
 <context>
     <name>CageSubtypes</name>
     <message>
-        <source>G'/G_cage vs Strain</source>
-        <translation>G'/G_cage vs 应变</translation>
+        <source>G_cage/G′_lin vs Strain</source>
+        <translation>G_cage/G′_lin vs 应变</translation>
     </message>
     <message>
         <source>G_cage vs Strain</source>
@@ -270,6 +254,10 @@
     <message>
         <source>Q Value</source>
         <translation>Q值</translation>
+    </message>
+    <message>
+        <source>Phase Angle Change</source>
+        <translation>相位角变化</translation>
     </message>
 </context>
 <context>
@@ -301,10 +289,6 @@
         <source>Multi-File Overlay</source>
         <translation>多文件叠加</translation>
     </message>
-    <message>
-        <source>Circular Decomposition</source>
-        <translation>圆周运动分解</translation>
-    </message>
 </context>
 <context>
     <name>ParamTooltips</name>
@@ -331,6 +315,10 @@
     <message>
         <source>Select data range for plotting</source>
         <translation>选择用于绘图的数据范围</translation>
+    </message>
+    <message>
+        <source>Auto: keep odd harmonics while In/I1 &gt;= 1e-3 and In &gt;= 5x noise floor (n=3 always kept); Manual: enter N</source>
+        <translation>自动：仅保留 In/I1 ≥ 1e-3 且 In ≥ 5 倍噪声底的奇次谐波（始终保留三阶谐波 n=3）；手动：输入谐波数 N</translation>
     </message>
 </context>
 <context>
@@ -1106,6 +1094,10 @@ HTML导出提供：
         <translation>Q值</translation>
     </message>
     <message>
+        <source>Phase Angle Change</source>
+        <translation>相位角变化</translation>
+    </message>
+    <message>
         <source>Multi-Order Fourier Coefficients</source>
         <translation>多阶傅里叶系数</translation>
     </message>
@@ -1134,8 +1126,8 @@ HTML导出提供：
         <translation>笼子模量</translation>
     </message>
     <message>
-        <source>G'/G_cage vs Strain</source>
-        <translation>G'/G_cage vs 应变</translation>
+        <source>G_cage/G′_lin vs Strain</source>
+        <translation>G_cage/G′_lin vs 应变</translation>
     </message>
     <message>
         <source>G_cage vs Strain</source>
@@ -1210,6 +1202,10 @@ HTML导出提供：
     <message>
         <source>Q Value</source>
         <translation>Q值</translation>
+    </message>
+    <message>
+        <source>Fourier Phase Angle</source>
+        <translation>傅里叶相位角</translation>
     </message>
     <message>
         <source>Harmonic n</source>
@@ -1289,6 +1285,10 @@ HTML导出提供：
     <message>
         <source>Ziyu Zhou, Hongbin Zhang</source>
         <translation>周子愉，张洪斌</translation>
+    </message>
+    <message>
+        <source>Software Copyright Registration No.</source>
+        <translation>软件著作权登记号</translation>
     </message>
     <message>
         <source>Contact</source>

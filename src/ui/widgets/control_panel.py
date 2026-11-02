@@ -9,7 +9,7 @@ from typing import Optional, List, Dict
 import math
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox, QPushButton, QComboBox, QLabel, QLineEdit, QSpinBox, QDoubleSpinBox, QProgressBar, QCheckBox, QMessageBox, QFrame, QSplitter, QMenu, QToolButton, QAction, QDialog, QDialogButtonBox, QTextEdit, QScrollArea, QSizePolicy, QStackedWidget
 from PyQt5.QtCore import Qt, pyqtSignal, QThread
-from PyQt5.QtGui import QFont, QIcon, QImage, QPixmap
+from PyQt5.QtGui import QFont, QIcon, QImage, QPixmap, QIntValidator
 from utils.config import Config
 from utils.i18n import tr
 from utils.responsive import get_ui_scale
@@ -27,11 +27,11 @@ PLOT_PARAM_MAP = {
     '4': [],
     '5': ["files_edit", "max_harmonic"],
     '6': ["harmonics"],
+    '6p': ["harmonics"],
     '6q': [],
     '7a': ["file_index", "harmonics", "data_range"],
     '7d': ["file_index", "harmonics", "data_range"],
     '7b': ["files_edit", "harmonics", "data_range"],
-    '7c': ["file_index", "harmonics", "data_range", "decomp_component"],
     '8': ["show_bifurcation"],
     '9': [],
     '10a': [],
@@ -200,6 +200,7 @@ class ControlPanel(QWidget):
                 self.fourier_single_combo.setVisible(False)
                 fourier_single_subtypes = [
                  ("6", tr("In/I1 Ratio", "FourierSingleSubtypes")),
+                 ("6p", tr("Phase Angle Change", "FourierSingleSubtypes")),
                  ("6q", tr("Q Value", "FourierSingleSubtypes"))]
                 for code, name in fourier_single_subtypes:
                     self.fourier_single_combo.addItem(name, code)
@@ -211,8 +212,7 @@ class ControlPanel(QWidget):
                     spp_subtypes = [
                      ("7a", tr("SPP-Fourier Calculation", "SPPSubtypes")),
                      ("7d", tr("SPP-Derivative Calculation", "SPPSubtypes")),
-                     ("7b", tr("Multi-File Overlay", "SPPSubtypes")),
-                     ("7c", tr("Circular Decomposition", "SPPSubtypes"))]
+                     ("7b", tr("Multi-File Overlay", "SPPSubtypes"))]
                     for code, name in spp_subtypes:
                         self.spp_combo.addItem(name, code)
                     else:
@@ -221,7 +221,7 @@ class ControlPanel(QWidget):
                         self.cage_modulus_combo = QComboBox()
                         self.cage_modulus_combo.setVisible(False)
                         cage_subtypes = [
-                         ("10a", tr("G'/G_cage vs Strain", "CageSubtypes")),
+                         ("10a", tr("G_cage/G′_lin vs Strain", "CageSubtypes")),
                          ("10b", tr("G_cage vs Strain", "CageSubtypes"))]
                         for code, name in cage_subtypes:
                             self.cage_modulus_combo.addItem(name, code)
@@ -369,8 +369,8 @@ class ControlPanel(QWidget):
             jet_r_idx = self.colormap_combo.findData("jet_r")
             if jet_r_idx >= 0:
                 self.colormap_combo.setCurrentIndex(jet_r_idx)
-        # For SPP single plot (7a, 7d, 7c), switch to viridis
-        elif subtype_code in ("7a", "7d", "7c"):
+        # For SPP single plot (7a, 7d), switch to viridis
+        elif subtype_code in ("7a", "7d"):
             viridis_idx = self.colormap_combo.findData("viridis")
             if viridis_idx >= 0:
                 self.colormap_combo.setCurrentIndex(viridis_idx)
@@ -420,12 +420,13 @@ class ControlPanel(QWidget):
         self.harmonics_combo = QComboBox()
         self.harmonics_combo.addItem(tr("Auto", "ControlPanel"), "auto")
         self.harmonics_combo.addItem(tr("Manual", "ControlPanel"), "manual")
-        self.harmonics_combo.setToolTip(tr("Auto: filter harmonics (In/I1 < 1e-4 removed); Manual: enter N", "ParamTooltips"))
+        self.harmonics_combo.setToolTip(tr("Auto: keep odd harmonics while In/I1 >= 1e-3 and In >= 5x noise floor (n=3 always kept); Manual: enter N", "ParamTooltips"))
         self.harmonics_combo.setVisible(False)
         self.harmonics_combo.currentIndexChanged.connect(self._on_harmonics_mode_changed)
         harmonics_layout.addWidget(self.harmonics_combo)
         self.harmonics_spin = QLineEdit()
         self.harmonics_spin.setPlaceholderText("15")
+        self.harmonics_spin.setValidator(QIntValidator(1, 50, self))
         self.harmonics_spin.setToolTip(tooltips["harmonics"])
         self.harmonics_spin.setVisible(False)
         harmonics_layout.addWidget(self.harmonics_spin)
@@ -478,16 +479,6 @@ class ControlPanel(QWidget):
         self.data_range_combo.setVisible(False)
         layout.addWidget(self.data_range_combo, 5, 1)
 
-        # Circular decomposition component selector (SPP 7c)
-        self.decomp_component_label = QLabel(tr("Trajectory:", "ControlPanel"))
-        self.decomp_component_label.setVisible(False)
-        layout.addWidget(self.decomp_component_label, 6, 0)
-        self.decomp_component_combo = QComboBox()
-        self.decomp_component_combo.addItem(tr("G′ₜ - G″ₜ (Cole-Cole)", "ControlPanel"), "Gt")
-        self.decomp_component_combo.addItem(tr("dG′ₜ/dt - dG″ₜ/dt", "ControlPanel"), "Gt_deriv")
-        self.decomp_component_combo.setToolTip(tr("Choose which SPP trajectory to decompose into rotating circles", "ControlPanel"))
-        self.decomp_component_combo.setVisible(False)
-        layout.addWidget(self.decomp_component_combo, 6, 1)
         self.edit_titles_btn = QPushButton(tr("Edit Titles...", "ControlPanel"))
         self.edit_titles_btn.setToolTip(tr("Open dialog to edit custom curve titles for each file", "ControlPanel"))
         self.edit_titles_btn.clicked.connect(self._on_edit_titles)
@@ -596,8 +587,8 @@ class ControlPanel(QWidget):
                 jet_r_idx = self.colormap_combo.findData("jet_r")
                 if jet_r_idx >= 0:
                     self.colormap_combo.setCurrentIndex(jet_r_idx)
-# For SPP single plot (7a, 7d, 7c), switch to viridis
-            elif subtype_code in ("7a", "7d", "7c"):
+# For SPP single plot (7a, 7d), switch to viridis
+            elif subtype_code in ("7a", "7d"):
                 viridis_idx = self.colormap_combo.findData("viridis")
                 if viridis_idx >= 0:
                     self.colormap_combo.setCurrentIndex(viridis_idx)
@@ -634,7 +625,7 @@ class ControlPanel(QWidget):
         required_params = PLOT_PARAM_MAP.get(plot_code, [])
         
         # Determine if we need to show params_group
-        scatter_plots = ('4', '9', '6', '6q', '7a', '7d', '7b', '8')  # ST values, Dissipation, Fourier, Q Value, SPP (Fourier/Derivative/multi), Bifurcation
+        scatter_plots = ('4', '9', '6', '6p', '6q', '7a', '7d', '7b', '8')  # ST values, Dissipation, Fourier, Phase Angle, Q Value, SPP (Fourier/Derivative/multi), Bifurcation
         line_plots = ('1', '3a', '3b', '3c', '5')  # Lissajous curves
         
         # Determine if we need to show params_group
@@ -654,12 +645,17 @@ class ControlPanel(QWidget):
         self.harmonics_label.setVisible("harmonics" in required_params)
         self.harmonics_widget.setVisible("harmonics" in required_params)
         if "harmonics" in required_params:
-            if plot_code == '6':
-                # For Fourier single-order, hide Auto/Manual, show only spin
+            if plot_code in ('6', '6p'):
+                # For Fourier single-order (In/I1 ratio / phase angle), hide
+                # Auto/Manual, show only the harmonic-number spin.
                 self.harmonics_combo.setVisible(False)
                 self.harmonics_spin.setVisible(True)
-                self.harmonics_spin.setText("3")
-            elif plot_code in ('7a', '7d', '7b', '7c'):
+                # Only seed the default the first time; otherwise honour the
+                # value the user typed (previously it was reset to 3 on every
+                # refresh, so the harmonic number could never be changed).
+                if not self.harmonics_spin.text().strip():
+                    self.harmonics_spin.setText("3")
+            elif plot_code in ('7a', '7d', '7b'):
                 # For SPP, show Auto/Manual dropdown, default Auto (spin hidden)
                 self.harmonics_combo.setVisible(True)
                 self.harmonics_combo.setCurrentIndex(0)  # Auto
@@ -675,9 +671,6 @@ class ControlPanel(QWidget):
         data_range_required = "data_range" in required_params
         self.data_range_label.setVisible(data_range_required)
         self.data_range_combo.setVisible(data_range_required)
-        decomp_required = "decomp_component" in required_params
-        self.decomp_component_label.setVisible(decomp_required)
-        self.decomp_component_combo.setVisible(decomp_required)
         title_options_visible = plot_code in ('7b', '3a', '3b', '3c', '5')
         self.edit_titles_btn.setVisible(title_options_visible)
         show_bifurcation_required = "show_bifurcation" in required_params
@@ -686,7 +679,7 @@ class ControlPanel(QWidget):
         self.use_normalized_checkbox.setVisible(use_normalized_required)
         
         # Show marker size for scatter plots, line width for line plots
-        scatter_plots = ('4', '9', '6', '6q', '7a', '7d', '7b', '7c', '8')  # ST values, Dissipation, Fourier, SPP (Fourier/Derivative/multi), Bifurcation, Q Value
+        scatter_plots = ('4', '9', '6', '6p', '6q', '7a', '7d', '7b', '8')  # ST values, Dissipation, Fourier, Phase Angle, Q Value, SPP (Fourier/Derivative/multi), Bifurcation
         line_plots = ('1', '3a', '3b', '3c', '5')  # Lissajous curves
         
         is_scatter = plot_code in scatter_plots
@@ -757,6 +750,10 @@ class ControlPanel(QWidget):
                 params['harmonics'] = 'auto'
             else:
                 params['harmonics'] = int(self.harmonics_spin.text()) if self.harmonics_spin.text().strip() else 15
+        elif self.harmonics_spin.isVisible():
+            # Fourier single-order ("6"): the spin is shown without the combo.
+            txt = self.harmonics_spin.text().strip()
+            params['harmonics'] = int(txt) if txt else 3
         
         if self.omega_label.isVisible():
             omega_value = self.omega_value_spin.value()
@@ -771,9 +768,6 @@ class ControlPanel(QWidget):
         
         if self.data_range_combo.isVisible():
             params['data_range'] = self.data_range_combo.currentIndex()
-        
-        if self.decomp_component_combo.isVisible():
-            params['decomp_component'] = self.decomp_component_combo.currentData()
         
         if self.show_bifurcation_checkbox.isVisible():
             params['show_bifurcation'] = self.show_bifurcation_checkbox.isChecked()
@@ -992,12 +986,10 @@ class ControlPanel(QWidget):
             self.colormap_combo.setCurrentIndex(colormap_idx)
         
         marker_size = settings.get_plot_setting("marker_size", 50)
-        if self.marker_size_spin.isVisible():
-            self.marker_size_spin.setValue(marker_size)
+        self.marker_size_spin.setValue(marker_size)
         
         line_width = settings.get_plot_setting("line_width", 5)
-        if self.line_width_spin.isVisible():
-            self.line_width_spin.setValue(line_width)
+        self.line_width_spin.setValue(line_width)
         
         self._update_colormap_preview(colormap)
         
@@ -1014,11 +1006,13 @@ class ControlPanel(QWidget):
                 self.colormap_combo.setCurrentIndex(colormap_idx)
                 self._update_colormap_preview(value)
         elif setting_key == "marker_size":
-            if self.marker_size_spin.isVisible():
-                self.marker_size_spin.setValue(value)
+            # Always update the value (even while hidden) so the widget is in
+            # sync the next time it becomes visible for a scatter-plot type.
+            self.marker_size_spin.setValue(value)
         elif setting_key == "line_width":
-            if self.line_width_spin.isVisible():
-                self.line_width_spin.setValue(value)
+            # Always update the value (even while hidden) so the widget is in
+            # sync the next time it becomes visible for a line-plot type.
+            self.line_width_spin.setValue(value)
 
     def clear_custom_titles(self):
         """Clear custom titles"""
@@ -1060,14 +1054,6 @@ class ControlPanel(QWidget):
          tr("Full Data", "ControlPanel"),
          tr("First Half", "ControlPanel"),
          tr("Second Half", "ControlPanel")])
-        self.decomp_component_label.setText(tr("Trajectory:", "ControlPanel"))
-        current_decomp = self.decomp_component_combo.currentData()
-        self.decomp_component_combo.clear()
-        self.decomp_component_combo.addItem(tr("G′ₜ - G″ₜ (Cole-Cole)", "ControlPanel"), "Gt")
-        self.decomp_component_combo.addItem(tr("dG′ₜ/dt - dG″ₜ/dt", "ControlPanel"), "Gt_deriv")
-        idx_decomp = self.decomp_component_combo.findData(current_decomp)
-        if idx_decomp >= 0:
-            self.decomp_component_combo.setCurrentIndex(idx_decomp)
         self.edit_titles_btn.setText(tr("Edit Titles...", "ControlPanel"))
         self.edit_titles_btn.setToolTip(tr("Open dialog to edit custom curve titles for each file", "ControlPanel"))
         self.show_bifurcation_checkbox.setText(tr("Show Bifurcation Point", "ControlPanel"))
@@ -1084,6 +1070,13 @@ class ControlPanel(QWidget):
         self.colormap_combo.setToolTip(tr("Select colormap for scatter plots and overlays", "ControlPanel"))
         self.colormap_preview_label.setToolTip(tr("Colormap preview", "ControlPanel"))
         self._refresh_colormap_combo()
+        # Re-apply parameter visibility: rebuilding the plot-type combo above
+        # resets its current index, so the line-width / marker-size rows and
+        # other parameter widgets must be re-evaluated for the active type.
+        try:
+            self._on_plot_type_changed(self.plot_type_combo.currentIndex())
+        except Exception:
+            pass
 
     def _refresh_colormap_combo(self):
         """Refresh colormap combo box items with grouped display"""
@@ -1151,6 +1144,7 @@ class ControlPanel(QWidget):
         self.fourier_single_combo.clear()
         fourier_single_subtypes = [
             ("6", tr("In/I1 Ratio", "FourierSingleSubtypes")),
+            ("6p", tr("Phase Angle Change", "FourierSingleSubtypes")),
             ("6q", tr("Q Value", "FourierSingleSubtypes"))
         ]
         for code, name in fourier_single_subtypes:
@@ -1164,8 +1158,7 @@ class ControlPanel(QWidget):
         spp_subtypes = [
             ("7a", tr("SPP-Fourier Calculation", "SPPSubtypes")),
             ("7d", tr("SPP-Derivative Calculation", "SPPSubtypes")),
-            ("7b", tr("Multi-File Overlay", "SPPSubtypes")),
-            ("7c", tr("Circular Decomposition", "SPPSubtypes"))
+            ("7b", tr("Multi-File Overlay", "SPPSubtypes"))
         ]
         for code, name in spp_subtypes:
             self.spp_combo.addItem(name, code)
@@ -1176,7 +1169,7 @@ class ControlPanel(QWidget):
         current_cage = self.cage_modulus_combo.currentData()
         self.cage_modulus_combo.clear()
         cage_subtypes = [
-            ("10a", tr("G'/G_cage vs Strain", "CageSubtypes")),
+            ("10a", tr("G_cage/G′_lin vs Strain", "CageSubtypes")),
             ("10b", tr("G_cage vs Strain", "CageSubtypes"))
         ]
         for code, name in cage_subtypes:

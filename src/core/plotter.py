@@ -1,4 +1,4 @@
-﻿# uncompyle6 version 3.9.3
+# uncompyle6 version 3.9.3
 # Python bytecode version base 3.8.0 (3413)
 # Decompiled from: Python 3.8.8 (default, Apr 13 2021, 15:08:03) [MSC v.1916 64 bit (AMD64)]
 # Embedded file name: core\plotter.py
@@ -1083,17 +1083,123 @@ class Plotter(QObject):
 
         self.plot_finished.emit()
 
+    def _estimate_linear_modulus(self, strain, G_prime, window_frac=0.05,
+                                 min_window=5, max_window=9, spread_tol=0.10,
+                                 level_tol=0.10, extend_tol=0.10):
+        """
+        Estimate the linear-region elastic modulus G'_lin from a strain sweep.
+
+        Every file of a strain sweep gives one point (gamma, G'(gamma)); the
+        linear region appears as the low-strain plateau of G'(gamma). The very
+        first points of weak signals are often scattered noise (sometimes even
+        negative), so the plateau must not be inferred from a single high/low
+        point. The estimate is therefore based on a *window* that has to be both
+        flat and high:
+
+          1) keep only finite, positive G' values (sign / noise rejection);
+          2) order by strain and choose the test-window length as ~5 % of the
+             points, clamped to [``min_window``, ``max_window``] (5..9 points);
+          3) a window qualifies as plateau when
+               * its relative spread is small:
+                 1.4826 * MAD / median <= ``spread_tol`` (default 10 %), and
+               * its level is high:
+                 median >= (1 - ``level_tol``) x the 95th percentile of all
+                 positive G' values (default 10 %);
+             isolated spikes / scattered low-strain points cannot qualify
+             because a window needs several mutually consistent points;
+          4) among qualifying windows the one at the LOWEST strain is taken
+             (the linear region is the first flat, high-level part of the
+             sweep);
+          5) that window is extended to neighbouring points whose G' stays
+             within ``extend_tol`` (10 %) of the window median, and G'_lin is
+             the median of the extended set;
+          6) fallback (no qualifying window): median of the G' values within
+             ``level_tol`` of the 95th percentile.
+
+        Args:
+            strain: Strain amplitudes of the sweep (one per file)
+            G_prime: Per-file fundamental elastic moduli G'(gamma)
+            window_frac: Window length as a fraction of the number of points
+            min_window / max_window: Window-length limits (points)
+            spread_tol: Relative-spread tolerance of a plateau window
+            level_tol: How close to the 95th percentile a plateau must be
+            extend_tol: Tolerance used to extend the plateau window
+
+        Returns:
+            (G_lin, strain_min, strain_max, n_points); G_lin is 0.0 when no
+            positive G' value exists.
+        """
+        g = np.asarray(strain, dtype=float).ravel()
+        gp = np.asarray(G_prime, dtype=float).ravel()
+        valid = np.isfinite(g) & np.isfinite(gp) & (gp > 0)
+        if not np.any(valid):
+            return 0.0, 0.0, 0.0, 0
+        g = g[valid]
+        gp = gp[valid]
+        order = np.argsort(g)
+        g = g[order]
+        gp = gp[order]
+        n = gp.size
+        if n < 3:
+            return float(np.median(gp)), float(g[0]), float(g[-1]), n
+
+        # Robust high level of the sweep (the G' plateau is the highest part
+        # for a strain-softening material).
+        high_level = float(np.percentile(gp, 95))
+        window = int(round(window_frac * n))
+        window = max(int(min_window), min(int(max_window), max(window, 3)))
+        window = min(window, n)
+
+        candidates = []
+        for i in range(0, n - window + 1):
+            w = gp[i:i + window]
+            med = float(np.median(w))
+            if med < (1.0 - level_tol) * high_level:
+                continue
+            mad = float(np.median(np.abs(w - med)))
+            if med > 0 and (1.4826 * mad) / med <= spread_tol:
+                candidates.append((i, med))
+
+        if candidates:
+            i0 = min(candidates, key=lambda item: item[0])[0]
+            med = float(np.median(gp[i0:i0 + window]))
+            lo, hi = i0, i0 + window - 1
+            while lo - 1 >= 0 and abs(gp[lo - 1] - med) <= extend_tol * med:
+                lo -= 1
+            while hi + 1 < n and abs(gp[hi + 1] - med) <= extend_tol * med:
+                hi += 1
+            selected = gp[lo:hi + 1]
+            return (float(np.median(selected)),
+                    float(g[lo]), float(g[hi]),
+                    int(selected.size))
+
+        # Fallback: the plateau cluster around the 95th percentile.
+        selected = gp >= (1.0 - level_tol) * high_level
+        return (float(np.median(gp[selected])),
+                float(g[selected][0]), float(g[selected][-1]),
+                int(np.count_nonzero(selected)))
+
     def plot_cage_modulus(self, plot_widget, marker_size=None, plot_type='10'):
         """
-        Plot cage modulus analysis (G'/G_cage and G_cage vs Strain)
-        绘制笼子模量分析
-        
-        G_cage定义: dσ/dγ|σ=0，即应力为0时elastic Lissajous曲线的切线模量
-        
+        Plot cage modulus analysis.
+
+        The normalized cage modulus is
+
+            G_cage / G'_lin
+
+        where ``G_cage = dσ/dγ|σ=0`` is the tangent modulus of the elastic
+        Lissajous curve at zero stress (one value per strain amplitude), and
+        ``G'_lin`` is the linear-region elastic modulus of the same strain
+        sweep - a single fixed constant estimated from the low-strain plateau
+        of G'(γ) (see :meth:`_estimate_linear_modulus`).
+
+        The other sub-plot shows G_cage versus strain.
+
         Args:
             plot_widget: MatplotlibCanvas widget
             marker_size: Marker size for scatter plots (default 50)
-            plot_type: '10' for dual plots, '10a' for G'/G_cage only, '10b' for G_cage only
+            plot_type: '10' for dual plots, '10a' for G_cage/G'_lin only,
+                       '10b' for G_cage only
         """
         fourier_folder = os.path.join(self.folder_path, "fourier_coefficients")
         if not os.path.exists(fourier_folder):
@@ -1110,7 +1216,6 @@ class Plotter(QObject):
         strain_amplitudes = []
         G_prime_values = []
         G_cage_values = []
-        G_ratio_values = []
         
         for txt_file in txt_files:
             file_path = os.path.join(self.folder_path, txt_file)
@@ -1152,7 +1257,6 @@ class Plotter(QObject):
                 strain_amplitudes.append(strain_amp)
                 G_prime_values.append(G_prime)
                 G_cage_values.append(G_cage)
-                G_ratio_values.append(G_prime / G_cage)
                 
             except Exception as e:
                 self.log_message.emit(f"Error processing {txt_file}: {str(e)}, skipping")
@@ -1165,13 +1269,33 @@ class Plotter(QObject):
         strain_array = np.array(strain_amplitudes)
         G_prime_array = np.array(G_prime_values)
         G_cage_array = np.array(G_cage_values)
-        G_ratio_array = np.array(G_ratio_values)
         
         sort_idx = np.argsort(strain_array)
         strain_array = strain_array[sort_idx]
         G_prime_array = G_prime_array[sort_idx]
         G_cage_array = G_cage_array[sort_idx]
-        G_ratio_array = G_ratio_array[sort_idx]
+        
+        # G'_lin = single fixed linear-region modulus (low-strain plateau of
+        # G'(gamma)); the normalized cage modulus is G_cage / G'_lin.
+        G_lin = float('nan')
+        G_lin_strain_min = G_lin_strain_max = 0.0
+        G_lin_points = 0
+        G_ratio_array = np.full(G_cage_array.shape, np.nan)
+        if plot_type in ('10', '10a'):
+            G_lin, G_lin_strain_min, G_lin_strain_max, G_lin_points = self._estimate_linear_modulus(
+                strain_array, G_prime_array)
+            if not np.isfinite(G_lin) or G_lin <= 0:
+                self.plot_error.emit("Cannot determine the linear-region modulus G'_lin (no positive G' values).")
+                return
+            G_ratio_array = G_cage_array / G_lin
+            self.log_message.emit(
+                f"Linear-region modulus G'_lin = {G_lin:.4g} Pa (from the low-strain G' plateau: "
+                f"{G_lin_points} points, strain {G_lin_strain_min:.3g} to {G_lin_strain_max:.3g})")
+            n_hidden = int(np.count_nonzero(~np.isfinite(G_ratio_array) | (G_ratio_array <= 0)))
+            if n_hidden:
+                self.log_message.emit(
+                    f"  {n_hidden} of {G_ratio_array.size} points have non-positive or non-finite "
+                    f"G_cage and are not visible on the log-scale axis")
         
         if hasattr(plot_widget, 'fig'):
             import matplotlib.colors as mcolors
@@ -1197,9 +1321,9 @@ class Plotter(QObject):
                 
                 sc1 = axs[0].scatter(strain_array, G_ratio_array, c=strain_array, cmap=cmap, norm=norm,
                                     s=marker_size, alpha=transparency, marker=marker_shape, edgecolors='w', linewidth=0.5)
-                axs[0].set_title(get_symbol('G_prime_over_G_cage') + " vs Strain", fontdict=title_font)
+                axs[0].set_title(get_symbol('G_cage_over_G_prime_lin') + " vs Strain  (" + get_symbol('G_prime_lin') + f" = {G_lin:.4g} Pa)", fontdict=title_font)
                 axs[0].set_xlabel("Strain", fontdict=label_font)
-                axs[0].set_ylabel(get_symbol('G_prime_over_G_cage'), fontdict=symbol_font)
+                axs[0].set_ylabel(get_symbol('G_cage_over_G_prime_lin'), fontdict=symbol_font)
                 axs[0].set_xscale('log')
                 axs[0].set_yscale('log')
                 axs[0].grid(False)
@@ -1213,6 +1337,11 @@ class Plotter(QObject):
                 axs[1].set_title(get_symbol('G_cage') + " vs Strain", fontdict=title_font)
                 axs[1].set_xlabel("Strain", fontdict=label_font)
                 axs[1].set_ylabel(get_symbol('G_cage') + " (Pa)", fontdict=label_font)
+                # Render the mathtext parts (G_cage / G'_lin) with the Times New
+                # Roman custom math font so they match the plain-text symbols.
+                for _artist in (axs[0].title, axs[0].yaxis.label,
+                                axs[1].title, axs[1].yaxis.label):
+                    _artist.set_math_fontfamily('custom')
                 axs[1].set_xscale('log')
                 axs[1].set_yscale('log')
                 axs[1].grid(False)
@@ -1226,9 +1355,11 @@ class Plotter(QObject):
                 
                 sc1 = ax.scatter(strain_array, G_ratio_array, c=strain_array, cmap=cmap, norm=norm,
                                 s=marker_size, alpha=transparency, marker=marker_shape, edgecolors='w', linewidth=0.5)
-                ax.set_title(get_symbol('G_prime_over_G_cage') + " vs Strain", fontdict=title_font)
+                ax.set_title(get_symbol('G_cage_over_G_prime_lin') + " vs Strain  (" + get_symbol('G_prime_lin') + f" = {G_lin:.4g} Pa)", fontdict=title_font)
                 ax.set_xlabel("Strain", fontdict=label_font)
-                ax.set_ylabel(get_symbol('G_prime_over_G_cage'), fontdict=symbol_font)
+                ax.set_ylabel(get_symbol('G_cage_over_G_prime_lin'), fontdict=symbol_font)
+                for _artist in (ax.title, ax.yaxis.label):
+                    _artist.set_math_fontfamily('custom')
                 ax.set_xscale('log')
                 ax.set_yscale('log')
                 ax.grid(False)
@@ -1245,6 +1376,8 @@ class Plotter(QObject):
                 ax.set_title(get_symbol('G_cage') + " vs Strain", fontdict=title_font)
                 ax.set_xlabel("Strain", fontdict=label_font)
                 ax.set_ylabel(get_symbol('G_cage') + " (Pa)", fontdict=label_font)
+                for _artist in (ax.title, ax.yaxis.label):
+                    _artist.set_math_fontfamily('custom')
                 ax.set_xscale('log')
                 ax.set_yscale('log')
                 ax.grid(False)
@@ -1259,7 +1392,7 @@ class Plotter(QObject):
             if plot_type == '10':
                 self.log_message.emit(f"Cage modulus dual plots for {len(G_cage_values)} files")
             elif plot_type == '10a':
-                self.log_message.emit(f"G'/G_cage plotted for {len(G_cage_values)} files")
+                self.log_message.emit(f"Cage modulus G_cage/G'_lin plotted for {len(G_cage_values)} files")
             else:
                 self.log_message.emit(f"G_cage plotted for {len(G_cage_values)} files")
             
@@ -1267,12 +1400,16 @@ class Plotter(QObject):
                 'strain': strain_array,
                 'G_cage': G_cage_array,
                 'G_prime': G_prime_array,
-                'G_ratio': G_ratio_array
+                'G_ratio': G_ratio_array,
+                'G_lin': G_lin,
+                'G_lin_range': (G_lin_strain_min, G_lin_strain_max),
+                'G_lin_points': G_lin_points,
+                'plot_type': plot_type
             })
         else:
             plot_widget.clear()
             plot_widget.setTitle("Cage Modulus Analysis")
-            plot_widget.setLabel("left", "$G'/G_{cage}$")
+            plot_widget.setLabel("left", "$G_{cage}/G'_{lin}$")
             plot_widget.setLabel("bottom", "Strain")
             plot_widget.plot(strain_array, G_ratio_array, pen=None, symbol="o", symbolBrush="b")
         
@@ -1530,6 +1667,169 @@ class Plotter(QObject):
         
         self.plot_finished.emit()
 
+    def plot_fourier_phase(self, plot_widget, harmonic_n: int, marker_size=None):
+        """
+        Plot the phase angle of one Fourier harmonic versus strain
+        (傅里叶系数 - 相位角变化).
+
+        The preprocessing writes, for every numbered file, the harmonics of the
+        measured stress as  fourier_coefficients/<file>.txt:  I_n, Re_n, Im_n,
+        with
+
+            sigma_n(t) = Re_n*cos(n*omega*t) + Im_n*sin(n*omega*t)
+                       = I_n*sin(n*omega*t + delta_n),
+
+        so the nth-harmonic phase angle is
+
+            delta_n = atan2(Re_n, Im_n)
+
+        (the same Delta that the SPP analysis uses to align the strain, i.e. the
+        phase angle is expressed relative to the strain reference
+        gamma(t) = gamma_0*sin(omega*t)).
+
+        Only the phase angle delta_n (degrees) is plotted, against strain on a
+        logarithmic x-axis; the strain value is also colour-coded in the colour
+        bar. The figure layout (labels, tick labels, colour bar) is arranged so
+        that nothing overlaps.
+
+        Args:
+            plot_widget: MatplotlibCanvas widget
+            harmonic_n: Harmonic number n
+            marker_size: Marker size for scatter plots (default 50)
+        """
+        fourier_folder = os.path.join(self.folder_path, "fourier_coefficients")
+        if not os.path.exists(fourier_folder):
+            self.plot_error.emit("Fourier coefficients not found. Run Fourier transform first.")
+            return
+
+        files = sorted([f for f in os.listdir(fourier_folder) if f.endswith(".txt")],
+                      key=lambda x: int(x.replace(".txt", "")))
+
+        if not files:
+            self.plot_error.emit("No Fourier coefficient files found.")
+            return
+
+        try:
+            harmonic_n = max(1, int(harmonic_n))
+        except (TypeError, ValueError):
+            harmonic_n = 3
+
+        strain_values = []
+        phase_values = []
+
+        for file_name in files:
+            file_path = os.path.join(fourier_folder, file_name)
+            data = self._load_fourier_data(file_path)
+
+            if data is None or len(data) < harmonic_n:
+                continue
+
+            I1 = data[0, 0]
+            if I1 <= 0:
+                continue
+
+            original_file = os.path.join(self.folder_path, file_name)
+            if not os.path.exists(original_file):
+                continue
+
+            try:
+                orig_data = np.loadtxt(original_file)
+                if orig_data.ndim != 2 or orig_data.shape[1] < 3:
+                    continue
+                strain0 = np.max(np.abs(orig_data[:, 2]))
+            except Exception:
+                continue
+
+            if strain0 <= 0:
+                continue
+
+            # delta_n = atan2(Re_n, Im_n); the file stores (I_n, Re_n, Im_n)
+            re_n = float(data[harmonic_n - 1, 1])
+            im_n = float(data[harmonic_n - 1, 2])
+            delta_n = math.degrees(math.atan2(re_n, im_n))
+
+            strain_values.append(float(strain0))
+            phase_values.append(delta_n)
+
+        if not strain_values:
+            self.plot_error.emit(f"No valid data for phase angle (n={harmonic_n})")
+            return
+
+        strain_array = np.array(strain_values)
+        phase_array = np.array(phase_values)
+
+        sort_idx = np.argsort(strain_array)
+        strain_array = strain_array[sort_idx]
+        phase_array = phase_array[sort_idx]
+
+        if hasattr(plot_widget, 'fig'):
+            import matplotlib.colors as mcolors
+            cmap_name = self._get_cmap('viridis')
+            fig = plot_widget.fig
+
+            fig.clear()
+            ax = fig.add_subplot(111)
+
+            strain_min = np.min(strain_array)
+            strain_max = np.max(strain_array)
+            if strain_min > 0 and strain_max > strain_min:
+                norm = mcolors.LogNorm(vmin=strain_min, vmax=strain_max)
+            else:
+                norm = plt.Normalize(vmin=strain_min, vmax=strain_max)
+
+            from utils.plot_font import get_label_fontdict, get_title_fontdict, get_symbol_fontdict, get_transparency, get_marker_shape
+            label_font = get_label_fontdict()
+            title_font = get_title_fontdict()
+            symbol_font = get_symbol_fontdict()
+            transparency = get_transparency()
+            marker_shape = get_marker_shape()
+
+            scatter = ax.scatter(strain_array, phase_array,
+                                c=strain_array, cmap=cmap_name, norm=norm, s=marker_size, alpha=transparency,
+                                marker=marker_shape, edgecolors='w', linewidth=0.5)
+
+            ax.set_xlabel('Strain', fontdict=label_font)
+            ax.set_ylabel(r"Phase angle $\delta_%d$ (°)" % harmonic_n, fontdict=symbol_font)
+            ax.set_title(r"Fourier Phase Angle vs Strain (n=%d)" % harmonic_n, fontdict=title_font)
+            ax.set_xscale('log')
+            ax.margins(x=0.03, y=0.05)
+            ax.grid(False)
+
+            ax.set_facecolor('white')
+            for spine in ax.spines.values():
+                spine.set_color('black')
+                spine.set_linewidth(1.0)
+
+            # Colour bar with explicit padding; tight_layout() runs afterwards so
+            # that the axis labels, tick labels and the colour bar do not overlap.
+            cbar = fig.colorbar(scatter, ax=ax, pad=0.02, fraction=0.05)
+            cbar.set_label('Strain', fontdict=label_font)
+            format_colorbar_log(cbar, strain_min, strain_max)
+
+            fig.tight_layout(pad=1.4)
+            plot_widget.canvas.draw_idle()
+
+        else:
+            plot_widget.clear()
+            plot_widget.setTitle(f"Fourier Phase Angle vs Strain (n={harmonic_n})")
+            plot_widget.setLabel("left", f"Phase angle δ{harmonic_n} (°)")
+            plot_widget.setLabel("bottom", "Strain")
+            plot_widget.showGrid(x=True, y=True)
+            plot_widget.setLogMode(x=True, y=False)
+            plot_widget.plot(strain_array, phase_array, pen=pg.mkPen("b", width=2),
+                           symbol="o", symbolBrush="b")
+
+        self.log_message.emit(f"Fourier phase angle plotted: n={harmonic_n}, {len(strain_values)} files")
+
+        # Emit data for table
+        self.plot_data_ready.emit('fourier_phase', {
+            'strain': strain_array,
+            'phase': phase_array,
+            'n': harmonic_n
+        })
+
+        self.plot_finished.emit()
+
     def plot_fourier_multi(self, plot_widget, files_str: str, max_harmonic: int, line_width=None):
         """
         Plot multiple Fourier coefficients Iₙ/I₁ for selected files in 3D
@@ -1778,7 +2078,7 @@ class Plotter(QObject):
             self.log_message.emit("Warning: 3D widget does not have plot_lissajous_3d_multi method")
         
         if hasattr(plot_widget_2d, "plot_lissajous_multi"):
-            plot_widget_2d.plot_lissajous_multi(data_list, valid_titles, colormap=colormap_name)
+            plot_widget_2d.plot_lissajous_multi(data_list, valid_titles, colormap=colormap_name, line_width=line_width)
             self.log_message.emit(f"2D Projections overlay plotted for {len(data_list)} files")
         
         self.plot_finished.emit()
@@ -1941,6 +2241,91 @@ class Plotter(QObject):
         """Calculate stress bifurcation"""
         pass
 
+    def _auto_harmonic_decision(self, magnitudes, rel_thr=1e-3, noise_mult=5.0,
+                                max_harmonic=31, min_harmonic=3):
+        """
+        Decide how many odd stress harmonics to keep for the SPP reconstruction.
+
+        ``magnitudes`` holds the odd-harmonic amplitudes I_1, I_3, I_5, ... of
+        the stress signal (index i -> harmonic 2*i + 1), as computed by the
+        analytical FFT branch or read from the fourier_coefficients files.
+
+        Criterion (v284; extends the v283 rule):
+
+          1) relative floor - a harmonic must reach ``rel_thr`` x I_1
+             (default 1e-3, i.e. 0.1 % of the fundamental) to count as signal;
+          2) noise floor - the same harmonic must also rise ``noise_mult``
+             times (default 5x) above the broadband noise floor of this file.
+             The noise floor is the median amplitude of the upper half of the
+             scanned odd-harmonic band (typically n ~ 27-51), a region that is
+             normally noise / spectral-leakage dominated;
+          3) contiguous truncation - harmonics are kept from n = 1 upwards and
+             the scan stops at the *first* harmonic that fails the joint
+             threshold, so an isolated noise spike at high order can no longer
+             drag a whole tail of meaningless harmonics into the reconstruction;
+          4) ``max_harmonic`` (default 31) is a hard safety cap on the order;
+          5) ``min_harmonic`` (default 3) is a low-order floor: the third-order
+             Fourier coefficient I_3 is always retained, even when it falls
+             below the amplitude / noise thresholds. Weakly nonlinear samples
+             and noise-dominated low-strain files legitimately have a small I_3
+             that the thresholds alone would drop, but the third-order term is
+             required by the SPP / Fourier analysis, so at least n = 1 and
+             n = 3 are kept whenever the data band allows it.
+
+        Why this matters: the SPP Frenet formulation differentiates the
+        reconstructed stress up to the third order, so the weights grow as
+        n^3. Harmonics at 1e-4 ... 1e-3 of I_1 change the rebuilt stress by far
+        less than 0.1 % (the reconstruction residual is unchanged) but can
+        dominate sigma''' and therefore G'(t), G''(t) and their time
+        derivatives - exactly the "small high-order harmonic" artefact produced
+        by the old fixed 1e-4 rule. The low-order floor (5) makes sure the fix
+        never removes the third-order information that the analysis needs.
+
+        Returns:
+            (max_odd_harmonic, threshold_amplitude, noise_floor_amplitude)
+        """
+        m = np.asarray(magnitudes, dtype=float).ravel()
+        m = m[np.isfinite(m)]
+        m = np.clip(m, 0.0, None)
+        if m.size == 0:
+            return 1, 0.0, 0.0
+        i1 = float(m[0])
+        if not np.isfinite(i1) or i1 <= 0:
+            return 1, 0.0, 0.0
+        # Noise floor: robust median of the upper half of the scanned band.
+        half = m.size // 2
+        tail = m[half:] if (m.size - half) >= 3 else m
+        noise_floor = float(np.median(tail)) if tail.size else 0.0
+        thr = max(float(rel_thr) * i1, float(noise_mult) * noise_floor)
+        max_n = 1
+        for i, amp in enumerate(m):
+            n = 2 * i + 1
+            if n > max_harmonic:
+                break
+            if amp >= thr:
+                max_n = n
+            else:
+                break
+        # Rule 5: always keep at least the third-order harmonic (n = 3) when
+        # the analysed band contains it; the third-order Fourier coefficient
+        # must not be filtered away by the amplitude / noise thresholds.
+        available_max = 2 * (m.size - 1) + 1  # highest odd order in the band
+        floor = min(int(min_harmonic), int(max_harmonic), available_max)
+        if floor % 2 == 0:  # SPP reconstruction uses odd orders only
+            floor -= 1
+        if floor > max_n:
+            max_n = floor
+        return max_n, thr, noise_floor
+
+    def _auto_harmonic_max(self, magnitudes, rel_thr=1e-3, noise_mult=5.0,
+                           max_harmonic=31, min_harmonic=3):
+        """Return only the highest odd harmonic auto-selected for the SPP
+        reconstruction (see :meth:`_auto_harmonic_decision` for the criterion).
+        """
+        return self._auto_harmonic_decision(
+            magnitudes, rel_thr=rel_thr, noise_mult=noise_mult,
+            max_harmonic=max_harmonic, min_harmonic=min_harmonic)[0]
+
     def calculate_spp(self, file_index: int, harmonics: int=15) -> bool:
         """Calculate SPP for a single file"""
         txt_files = sorted([f for f in os.listdir(self.folder_path) if f.endswith('.txt') and f[:-4].isdigit()],
@@ -1958,7 +2343,12 @@ class Plotter(QObject):
         Calculate SPP batch for all files.
 
         Args:
-            harmonics: Number of Fourier harmonics (N), or 'auto' to auto-filter
+            harmonics: Number of Fourier harmonics (N), or 'auto' to auto-filter.
+                'auto' keeps the odd harmonics 1, 3, 5 ... while I_n/I_1 stays
+                >= 1e-3 (0.1 % of the fundamental) and the harmonic stays >= 5x
+                above the file's own noise floor (median of the upper half of
+                the scanned band); the third-order harmonic (n = 3) is always
+                retained; see :meth:`_auto_harmonic_decision`.
             data_range: 0=Full Data, 1=First Half, 2=Second Half
             method: 'fourier' = analytical Fourier derivatives (Rogers Frenet);
                     'numerical' = original v262 approach (rebuild stress from
@@ -1977,6 +2367,12 @@ class Plotter(QObject):
         method_label = "Fourier analytical" if method == 'fourier' else "Numerical gradient"
         auto_label = " (auto-filter)" if harmonics == 'auto' else ""
         self.log_message.emit(f"Calculating SPP [{method_label}{auto_label}] with omega={om:.4f} rad/s, frequency={frequency:.2f} Hz, harmonics={harmonics}")
+        if harmonics == 'auto':
+            self.log_message.emit(
+                "  Auto harmonic criterion: keep odd harmonics while "
+                "I_n/I_1 >= 1e-3 (0.1% of I1) and I_n >= 5 x noise floor; "
+                "truncate at the first harmonic below threshold; always keep "
+                "n = 3 (third-order Fourier coefficient); order cap 31")
 
         spp_folder = os.path.join(self.folder_path, "SPP Data")
         os.makedirs(spp_folder, exist_ok=True)
@@ -2025,23 +2421,26 @@ class Plotter(QObject):
 
                 # Determine effective harmonics (auto-filter or fixed)
                 if harmonics == 'auto':
-                    # Auto-filter: skip harmonics where In/I1 < 1e-4
-                    I1_stress = math.hypot(A_n[p, 2], B_n[p, 2])
-                    if I1_stress < 1e-12:
-                        I1_stress = 1e-12
-                    max_n_check = min(W, 51)  # check up to 51st harmonic
-                    effective_ns = []
+                    # Scan odd harmonics and keep them while they are above the
+                    # joint criterion max(1e-3 x I1, 5 x noise floor); the old
+                    # fixed 1e-4 threshold sat below the noise floor of real
+                    # recordings and admitted meaningless high harmonics.
+                    max_n_check = min(W, 51)  # scan up to the 51st harmonic
+                    odd_amps = []
                     for n in range(1, max_n_check + 1, 2):
                         idx = p * n
-                        In = math.hypot(A_n[idx, 2], B_n[idx, 2])
-                        if In / I1_stress >= 1e-4:
-                            effective_ns.append(n)
-                        else:
-                            break  # stop at first harmonic below threshold
-                    if not effective_ns:
-                        effective_ns = [1]
-                    effective_max = max(effective_ns)
-                    self.log_message.emit(f"  File {file_number}: auto-filtered harmonics = {effective_ns}")
+                        odd_amps.append(math.hypot(A_n[idx, 2], B_n[idx, 2]))
+                    i1_stress = odd_amps[0] if odd_amps else 0.0
+                    effective_max, auto_thr, auto_noise = self._auto_harmonic_decision(odd_amps)
+                    effective_ns = list(range(1, effective_max + 1, 2))
+                    if i1_stress > 0:
+                        self.log_message.emit(
+                            f"  File {file_number}: auto harmonics {effective_ns} "
+                            f"(threshold={auto_thr / i1_stress:.2e} x I1, "
+                            f"noise floor={auto_noise / i1_stress:.2e} x I1)")
+                    else:
+                        self.log_message.emit(
+                            f"  File {file_number}: auto harmonics {effective_ns} (no usable I1)")
                 else:
                     effective_max = int(harmonics)
 
@@ -2098,25 +2497,26 @@ class Plotter(QObject):
                             real_values.append(float(fdata[1]))
                             imag_values.append(float(fdata[2]))
 
-                # Auto-filter for numerical method too
+                # Auto-filter for numerical method too (same criterion)
                 if harmonics == 'auto' and len(real_values) > 0:
-                    I1_val = math.hypot(real_values[0], imag_values[0])
-                    if I1_val < 1e-12:
-                        I1_val = 1e-12
-                    effective_count = 0
-                    for i in range(0, len(real_values), 2):  # odd harmonics only
-                        if i >= len(real_values):
-                            break
-                        In = math.hypot(real_values[i], imag_values[i])
-                        if In / I1_val >= 1e-4:
-                            effective_count = i + 1
-                        else:
-                            break
-                    if effective_count == 0:
-                        effective_count = 1
+                    odd_amps = [math.hypot(real_values[i], imag_values[i])
+                                for i in range(0, len(real_values), 2)]
+                    i1_val = odd_amps[0] if odd_amps else 0.0
+                    effective_max, auto_thr, auto_noise = self._auto_harmonic_decision(odd_amps)
+                    # coefficient index n corresponds to harmonic n + 1
+                    effective_count = effective_max
                     real_values = real_values[:effective_count]
                     imag_values = imag_values[:effective_count]
-                    self.log_message.emit(f"  File {file_number}: auto-filtered {effective_count} coefficients")
+                    if i1_val > 0:
+                        self.log_message.emit(
+                            f"  File {file_number}: auto harmonics n=1..{effective_max} "
+                            f"({effective_count} coefficients; "
+                            f"threshold={auto_thr / i1_val:.2e} x I1, "
+                            f"noise floor={auto_noise / i1_val:.2e} x I1)")
+                    else:
+                        self.log_message.emit(
+                            f"  File {file_number}: auto harmonics n=1..{effective_max} "
+                            f"({effective_count} coefficients)")
                     n_harm = effective_count
                 else:
                     n_harm = int(harmonics)
@@ -2717,178 +3117,3 @@ class Plotter(QObject):
 
         self.plot_finished.emit()
 
-    def _load_spp_array(self, file_number):
-        """Load the 4-column SPP data (Gt', Gt'', dGt'/dt, dGt''/dt) for a file."""
-        spp_folder = os.path.join(self.folder_path, "SPP Data")
-        file_number_str = str(file_number)
-        possible_names = [
-            f"{file_number_str}_spp data.txt",
-            f"{file_number_str.zfill(3)}_spp data.txt",
-            f"{file_number_str.zfill(2)}_spp data.txt",
-        ]
-        spp_file = None
-        for name in possible_names:
-            path = os.path.join(spp_folder, name)
-            if os.path.exists(path):
-                spp_file = path
-                break
-        if spp_file is None:
-            return None, None
-        data = self._load_data(spp_file)
-        if data is None or data.ndim == 1 or data.shape[1] < 4:
-            return None, None
-        return data, spp_file
-
-    def plot_spp_circular_decomposition(self, plot_widget, file_number: int,
-                                        component: str='Gt', harmonics=15,
-                                        data_range: int=0, marker_size=None,
-                                        method: str='fourier'):
-        """
-        Decompose an SPP trajectory into rotating circular components.
-
-        A closed 2-D trajectory w(t)=x(t)+i·y(t) is written as a sum of complex
-        phasors c_k·e^{i·ω_k·t}; |c_k| is the circle radius and sign(ω_k) the
-        rotation direction (ccw / cw).  The trajectory is either the Cole-Cole
-        path (G′ₜ, G″ₜ) or its time-derivative path (dG′ₜ/dt, dG″ₜ/dt).
-
-        Produces a 3-panel figure:
-          (a) original trajectory vs. circular-component reconstruction,
-          (b) rotation spectrum: radius vs. signed angular frequency,
-          (c) individual circles overlaid at their mean-centred origin.
-        """
-        self.log_message.emit(f"Circular decomposition for file {file_number} (component={component})...")
-
-        # Make sure the SPP data exists (writes SPP Data/*.txt if needed).
-        data, spp_file = self._load_spp_array(file_number)
-        if data is None:
-            success = self.calculate_spp_batch(harmonics, data_range, method=method)
-            if not success:
-                self.plot_error.emit("Failed to calculate SPP data for circular decomposition.")
-                return
-            data, spp_file = self._load_spp_array(file_number)
-            if data is None:
-                self.plot_error.emit(f"SPP file for number {file_number} not found.")
-                return
-
-        n_points = len(data)
-        if data_range == 0:
-            start_idx, end_idx = 0, n_points
-        elif data_range == 1:
-            start_idx, end_idx = 0, n_points // 2
-        else:
-            start_idx, end_idx = n_points // 2, n_points
-
-        if component == 'Gt_deriv':
-            x = data[start_idx:end_idx, 2].astype(float)
-            y = data[start_idx:end_idx, 3].astype(float)
-            label_x, label_y = "dG′ₜ/dt", "dG″ₜ/dt"
-            title = "Circular decomposition of dG′ₜ/dt - dG″ₜ/dt"
-        else:
-            x = data[start_idx:end_idx, 0].astype(float)
-            y = data[start_idx:end_idx, 1].astype(float)
-            label_x, label_y = "G′ₜ(t) (Pa)", "G″ₜ(t) (Pa)"
-            title = "Circular decomposition of G′ₜ - G″ₜ"
-
-        from core.circular_decomposition import decompose_trajectory
-        om = self.omega if self.omega else 2 * np.pi
-        n_harm = 15 if harmonics == 'auto' else int(harmonics)
-        result = decompose_trajectory(x, y, om, n_harmonics=n_harm, harmonic_steps=1)
-        comps = result['components']
-        x_rec, y_rec = result['reconstruction']
-
-        # Persist the decomposition next to the SPP data.
-        try:
-            decomp_folder = os.path.join(self.folder_path, "SPP Circular Decomposition")
-            os.makedirs(decomp_folder, exist_ok=True)
-            out_file = os.path.join(decomp_folder, f"{str(file_number).zfill(3)}_{component}_circular.txt")
-            with open(out_file, 'w') as f:
-                f.write("# n\tomega(rad/s)\tdirection(+1=ccw,-1=cw)\tradius\tphase_deg\treal\timag\n")
-                f.write(f"# mean_real\t{result['mean'].real}\tmean_imag\t{result['mean'].imag}\n")
-                f.write(f"# residual_rms_ratio\t{result['residual']}\n")
-                for c in comps:
-                    d = 1 if c['direction'] == 'ccw' else -1
-                    f.write(f"{c['n']}\t{c['omega']}\t{d}\t{c['radius']}\t{c['phase_deg']}\t{c['real']}\t{c['imag']}\n")
-            self.log_message.emit(f"Circular decomposition saved: {out_file}")
-        except Exception as e:
-            self.log_message.emit(f"Failed to save circular decomposition: {e}")
-
-        if hasattr(plot_widget, "fig"):
-            import matplotlib.colors as mcolors
-            from utils.plot_font import (get_label_fontdict, get_title_fontdict,
-                                         get_legend_fontdict)
-            from matplotlib.patches import Patch
-
-            label_font = get_label_fontdict()
-            title_font = get_title_fontdict()
-            legend_font = get_legend_fontdict()
-
-            plot_widget.fig.clear()
-            plot_widget.fig.set_facecolor('white')
-            axs = plot_widget.fig.subplots(1, 3)
-
-            # (a) original vs reconstruction
-            axs[0].plot(x, y, color='#BDBDBD', lw=1.6, label='Original')
-            axs[0].plot(x_rec, y_rec, color='#D32F2F', lw=1.2, ls='--', label='Reconstruction')
-            axs[0].plot(result['mean'].real, result['mean'].imag, 'k+', ms=10, label='Mean (DC)')
-            axs[0].set_xlabel(label_x, fontdict=label_font)
-            axs[0].set_ylabel(label_y, fontdict=label_font)
-            axs[0].set_title('Trajectory vs circular components', fontdict=title_font)
-            axs[0].legend(prop=legend_font, loc='best', frameon=False)
-            axs[0].set_aspect('equal', adjustable='datalim')
-
-            # (b) rotation spectrum (signed frequency)
-            omegas = [c['omega'] for c in comps]
-            radii = [c['radius'] for c in comps]
-            colors = ['#2196F3' if c['direction'] == 'ccw' else '#FF9800' for c in comps]
-            if comps:
-                axs[1].bar(omegas, radii, color=colors, width=abs(om) * 0.28 if om else 0.4)
-            axs[1].axvline(0.0, color='k', lw=0.8)
-            axs[1].set_xlabel('Angular frequency ω (rad/s)', fontdict=label_font)
-            axs[1].set_ylabel('Circle radius |c|', fontdict=label_font)
-            axs[1].set_title('Rotation spectrum (radius vs frequency)', fontdict=title_font)
-            axs[1].legend(handles=[Patch(color='#2196F3', label='CCW (+)'),
-                                   Patch(color='#FF9800', label='CW (−)')],
-                          prop=legend_font, loc='best', frameon=False)
-
-            # (c) individual circles at the mean-centred origin
-            theta = np.linspace(0, 2 * np.pi, 200)
-            cmap = plt.get_cmap('tab20')
-            for i, c in enumerate(sorted(comps, key=lambda z: -z['radius'])):
-                color = cmap(i % 20)
-                cxs = c['radius'] * np.cos(theta)
-                cys = c['radius'] * np.sin(theta)
-                axs[2].plot(cxs, cys, color=color, lw=1.4,
-                            label=f"n={c['n']} {'CCW' if c['direction']=='ccw' else 'CW'} r={c['radius']:.3g}")
-            if not comps:
-                axs[2].text(0.5, 0.5, 'No components', ha='center', va='center',
-                            transform=axs[2].transAxes)
-            axs[2].axhline(0, color='#E0E0E0', lw=0.6)
-            axs[2].axvline(0, color='#E0E0E0', lw=0.6)
-            axs[2].set_xlabel('Real axis', fontdict=label_font)
-            axs[2].set_ylabel('Imaginary axis', fontdict=label_font)
-            axs[2].set_title('Individual circular components', fontdict=title_font)
-            axs[2].set_aspect('equal', adjustable='datalim')
-            axs[2].legend(prop=legend_font, loc='upper right', frameon=False, fontsize=None)
-
-            n_keep = len(comps)
-            res_pct = result['residual'] * 100
-            plot_widget.fig.suptitle(title, fontsize=title_font['size'], fontweight='bold')
-            plot_widget.fig.tight_layout(rect=(0, 0, 1, 0.95))
-            plot_widget.canvas.draw_idle()
-
-            self.log_message.emit(
-                f"Circular decomposition: {n_keep} components, residual={res_pct:.3g}%")
-        else:
-            plot_widget.clear()
-            plot_widget.setTitle("SPP Circular Decomposition")
-            plot_widget.plot(x, y, pen=None, symbol="o")
-
-        self.plot_data_ready.emit("spp_circular", {
-            "file_number": str(file_number),
-            "component": component,
-            "components": comps,
-            "mean": result['mean'],
-            "residual": result['residual'],
-        })
-
-        self.plot_finished.emit()

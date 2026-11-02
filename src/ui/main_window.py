@@ -1,4 +1,4 @@
-﻿# uncompyle6 version 3.9.3
+# uncompyle6 version 3.9.3
 # Python bytecode version base 3.8.0 (3413)
 # Decompiled from: Python 3.8.8 (default, Apr 13 2021, 15:08:03) [MSC v.1916 64 bit (AMD64)]
 # Embedded file name: ui\main_window.py
@@ -441,6 +441,9 @@ class MainWindow(QMainWindow):
         plot_6q_action = QAction(tr("Q Value", "LAOSAnalysis"), self)
         plot_6q_action.triggered.connect(lambda: self._on_quick_plot_menu("6q"))
         fourier_single_menu.addAction(plot_6q_action)
+        plot_6p_action = QAction(tr("Phase Angle Change", "LAOSAnalysis"), self)
+        plot_6p_action.triggered.connect(lambda: self._on_quick_plot_menu("6p"))
+        fourier_single_menu.addAction(plot_6p_action)
         plot_fourier_multi_action = QAction(tr("Multi-Order Fourier Coefficients", "LAOSAnalysis"), self)
         plot_fourier_multi_action.triggered.connect(lambda: self._on_quick_plot_menu("5"))
         plot_menu.addAction(plot_fourier_multi_action)
@@ -460,7 +463,7 @@ class MainWindow(QMainWindow):
         plot_7b_action.triggered.connect(lambda: self._on_quick_plot_menu("7b"))
         spp_menu.addAction(plot_7b_action)
         cage_menu = plot_menu.addMenu(tr("Cage Modulus", "LAOSAnalysis"))
-        plot_10a_action = QAction(tr("G'/G_cage vs Strain", "LAOSAnalysis"), self)
+        plot_10a_action = QAction(tr("G_cage/G′_lin vs Strain", "LAOSAnalysis"), self)
         plot_10a_action.triggered.connect(lambda: self._on_quick_plot_menu("10a"))
         cage_menu.addAction(plot_10a_action)
         plot_10b_action = QAction(tr("G_cage vs Strain", "LAOSAnalysis"), self)
@@ -1077,7 +1080,12 @@ class MainWindow(QMainWindow):
             spin = QSpinBox()
             spin.setMinimum(1)
             spin.setMaximum(50)
-            spin.setValue(self.control_panel.harmonics_spin.value())
+            # control_panel.harmonics_spin is a QLineEdit in this build
+            try:
+                current_harmonic = int(self.control_panel.harmonics_spin.text().strip() or "3")
+            except (AttributeError, ValueError):
+                current_harmonic = 3
+            spin.setValue(max(1, min(50, current_harmonic)))
             form_layout.addRow(tr("Harmonics:", "ControlPanel"), spin)
             widgets["harmonics"] = spin
         
@@ -1541,6 +1549,13 @@ class MainWindow(QMainWindow):
                 self.plotter.plot_q_value(self.plot_widget.get_matplotlib_widget(), marker_size)
                 self.plot_widget.set_current_tab(0)
             
+            elif plot_type == '6p':
+                harmonic_n = params.get('harmonics', 3)
+                marker_size = params.get('marker_size', 50)
+                self.plotter.plot_fourier_phase(self.plot_widget.get_matplotlib_widget(), harmonic_n, marker_size)
+                self.plot_widget.set_current_tab(0)
+                self.log_panel.append_log(f"Fourier phase angle plotted: n={harmonic_n}", "INFO")
+            
             elif plot_type == '7a':
                 file_index = params.get('file_index', 0)
                 harmonics = params.get('harmonics', 15)
@@ -1585,22 +1600,6 @@ class MainWindow(QMainWindow):
                     )
                     self.plot_widget.set_current_tab(0)
                     self.log_panel.append_log(f"SPP Overlay: {len(file_indices)} files", "INFO")
-
-            elif plot_type == '7c':
-                file_index = params.get('file_index', 0)
-                harmonics = params.get('harmonics', 15)
-                data_range = params.get('data_range', 0)
-                marker_size = params.get('marker_size', 50)
-                component = params.get('decomp_component', 'Gt')
-                self.plotter.set_omega(omega)
-                self.plotter.plot_spp_circular_decomposition(
-                    self.plot_widget.get_matplotlib_widget(),
-                    file_index, component=component, harmonics=harmonics,
-                    data_range=data_range, marker_size=marker_size,
-                    method='fourier')
-                self.plot_widget.set_current_tab(0)
-                self.log_panel.append_log(
-                    f"SPP Circular decomposition plotted: file {file_index} ({component})", "INFO")
             
             elif plot_type == '8':
                 show_bifurcation = params.get('show_bifurcation', False)
@@ -2244,10 +2243,6 @@ class MainWindow(QMainWindow):
                                      data_dict.get("eta_l"), data_dict.get("eta_m"))
         elif data_type == "spp":
             data_table.show_spp_data(data_dict["file_number"], data_dict["data"])
-        elif data_type == "spp_circular":
-            data_table.show_spp_circular_data(
-                data_dict["file_number"], data_dict.get("component", "Gt"),
-                data_dict["components"], data_dict.get("mean"), data_dict.get("residual", 0.0))
         elif data_type == "stress_bifurcation":
             data_table.show_stress_bifurcation(data_dict["sigma_0"], data_dict["gamma_0"], 
                                                data_dict["gamma_dot_0"], data_dict["gamma_sigma_0"], 
@@ -2256,13 +2251,20 @@ class MainWindow(QMainWindow):
         elif data_type == "dissipation_rate":
             data_table.show_dissipation_rate(data_dict["strain"], data_dict["dissipation"])
         elif data_type == "cage_modulus":
-            data_table.show_cage_modulus(data_dict["strain"], data_dict["G_ratio"])
+            if data_dict.get("plot_type") == "10b":
+                data_table.show_cage_modulus_gcage(data_dict["strain"], data_dict["G_cage"])
+            else:
+                data_table.show_cage_modulus(data_dict["strain"], data_dict["G_ratio"],
+                                             data_dict.get("G_cage"), data_dict.get("G_prime"),
+                                             data_dict.get("G_lin"))
         elif data_type == "fourier_ratio":
             data_table.show_fourier_ratio(data_dict["strain"], data_dict["ratio"], data_dict["n"])
         elif data_type == "fourier_multi":
             data_table.show_fourier_multi_data(data_dict["data"], data_dict["max_harmonic"])
         elif data_type == "q_value":
             data_table.show_q_value(data_dict["strain"], data_dict["q_value"])
+        elif data_type == "fourier_phase":
+            data_table.show_fourier_phase(data_dict["strain"], data_dict["phase"], data_dict["n"])
         elif data_type == "different_strain_in_i1":
             data_table.show_different_strain_in_i1(data_dict["strains"], data_dict["ratios"], data_dict["n"])
         
@@ -2334,6 +2336,16 @@ class MainWindow(QMainWindow):
         author_content = QLabel(f'<h4>{author_name}</h4>')
         author_content.setAlignment(Qt.AlignCenter)
         layout.addWidget(author_content)
+        
+        layout.addSpacing(15)
+        
+        copyright_title = QLabel(f'<h3><b>{tr("Software Copyright Registration No.", "About")}:</b></h3>')
+        copyright_title.setAlignment(Qt.AlignCenter)
+        layout.addWidget(copyright_title)
+        
+        copyright_no = QLabel(f'<h4>软著登字第18259013号<br/>Software Copyright Registration No. 18259013</h4>')
+        copyright_no.setAlignment(Qt.AlignCenter)
+        layout.addWidget(copyright_no)
         
         layout.addSpacing(15)
         
