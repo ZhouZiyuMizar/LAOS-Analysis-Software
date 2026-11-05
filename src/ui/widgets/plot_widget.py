@@ -541,52 +541,323 @@ class PlotWidgetContainer(QWidget):
                 filepath += ".html"
             self._export_current_plot(filepath, "html")
     
+    @staticmethod
+    def _plotly_figure_to_matplotlib(fig):
+        """Re-render a Plotly 3D figure with matplotlib for image export.
+
+        Plotly image export (kaleido) is unreliable in the compiled application,
+        so the 3D tab (Lissajous 3D, Fourier 3D, ...) is converted to an
+        equivalent matplotlib 3D figure before saving as SVG/PNG/JPG.
+        """
+        import numpy as np
+        from matplotlib.figure import Figure
+        from matplotlib import cm, colors as mcolors
+        from mpl_toolkits.mplot3d.art3d import Line3DCollection
+
+        def _text_of(value):
+            if value is None:
+                return ''
+            if isinstance(value, str):
+                return value
+            return getattr(value, 'text', '') or ''
+
+        def _as_float_1d(values):
+            try:
+                arr = np.asarray(values, dtype=float).ravel()
+            except Exception:
+                return None
+            if arr.size == 0:
+                return None
+            mask = np.isfinite(arr)
+            if not mask.all():
+                arr = arr[mask]
+            return arr if arr.size else None
+
+        def _resolve_color(color_value, count):
+            """Return ('solid', css_color) / ('array', values) or None."""
+            if color_value is None:
+                return None
+            if isinstance(color_value, str):
+                return ('solid', color_value)
+            try:
+                arr = np.asarray(color_value)
+            except Exception:
+                return None
+            if arr.ndim == 0:
+                return ('solid', str(arr))
+            if arr.dtype.kind in ('U', 'S', 'O'):
+                return ('solid', str(arr.ravel()[0]))
+            arr = arr.astype(float).ravel()
+            if arr.size == count:
+                return ('array', arr)
+            return None
+
+        def _colorscale_of(holder):
+            scale = getattr(holder, 'colorscale', None)
+            if isinstance(scale, str):
+                try:
+                    return cm.get_cmap(scale)
+                except Exception:
+                    return cm.get_cmap('viridis')
+            if scale is not None:
+                try:
+                    return mcolors.LinearSegmentedColormap.from_list(
+                        'plotly_scale', [color for _, color in scale])
+                except Exception:
+                    pass
+            return cm.get_cmap('viridis')
+
+        try:
+            scene = fig.layout.scene
+        except Exception:
+            scene = None
+
+        def _axis_of(name):
+            if scene is None:
+                return None
+            return getattr(scene, name, None)
+
+        _xaxis, _yaxis, _zaxis = _axis_of('xaxis'), _axis_of('yaxis'), _axis_of('zaxis')
+        log_flags = {
+            'x': str(getattr(_xaxis, 'type', '') or '').lower() == 'log',
+            'y': str(getattr(_yaxis, 'type', '') or '').lower() == 'log',
+            'z': str(getattr(_zaxis, 'type', '') or '').lower() == 'log',
+        }
+
+        mfig = Figure(figsize=(10, 8), dpi=100, facecolor='white')
+        ax = mfig.add_subplot(111, projection='3d')
+
+        traces = list(getattr(fig, 'data', []) or [])
+        colorbar_values = None
+        colorbar_cmap = None
+        colorbar_label = ''
+        xs_all, ys_all, zs_all = [], [], []
+
+        for trace in traces:
+            x = _as_float_1d(getattr(trace, 'x', None))
+            y = _as_float_1d(getattr(trace, 'y', None))
+            z = _as_float_1d(getattr(trace, 'z', None))
+            if x is None or y is None or z is None:
+                continue
+            count = min(x.size, y.size, z.size)
+            if count == 0:
+                continue
+            x, y, z = x[:count], y[:count], z[:count]
+            # Plotly log axes are rendered as linear axes on log10-transformed
+            # coordinates (mplot3d handles log scales poorly).
+            mask = np.ones(count, dtype=bool)
+            if log_flags['x']:
+                mask &= (x > 0)
+            if log_flags['y']:
+                mask &= (y > 0)
+            if log_flags['z']:
+                mask &= (z > 0)
+            if not mask.all():
+                x, y, z = x[mask], y[mask], z[mask]
+                count = x.size
+            if count == 0:
+                continue
+            xt = np.log10(x) if log_flags['x'] else x
+            yt = np.log10(y) if log_flags['y'] else y
+            zt = np.log10(z) if log_flags['z'] else z
+            xs_all.append(xt)
+            ys_all.append(yt)
+            zs_all.append(zt)
+            mode = str(getattr(trace, 'mode', 'lines') or 'lines')
+            name = getattr(trace, 'name', '') or ''
+            line = getattr(trace, 'line', None)
+            marker = getattr(trace, 'marker', None)
+            try:
+                line_width = float(getattr(line, 'width', None))
+            except (TypeError, ValueError):
+                line_width = None
+            lw = max(0.6, (line_width or 3.0) / 3.0)
+
+            line_color = None
+            marker_color = None
+            if line is not None:
+                line_color = _resolve_color(getattr(line, 'color', None), count)
+            if marker is not None:
+                marker_color = _resolve_color(getattr(marker, 'color', None), count)
+
+            if line_color is not None and line_color[0] == 'array':
+                values = line_color[1]
+                cmap = _colorscale_of(line)
+                norm = mcolors.Normalize(vmin=float(np.nanmin(values)),
+                                         vmax=float(np.nanmax(values)))
+                segments = [[(xt[i], yt[i], zt[i]),
+                             (xt[i + 1], yt[i + 1], zt[i + 1])]
+                            for i in range(count - 1)]
+                if segments:
+                    collection = Line3DCollection(segments, cmap=cmap, norm=norm,
+                                                  linewidths=lw)
+                    collection.set_array(values[:-1] if values.size > 1 else values)
+                    ax.add_collection3d(collection)
+                    if colorbar_values is None:
+                        colorbar_values = values
+                        colorbar_cmap = cmap
+                        colorbar_label = _text_of(getattr(
+                            getattr(line, 'colorbar', None), 'title', None)) or 'Color'
+            elif 'lines' in mode:
+                color = None
+                if line_color is not None and line_color[0] == 'solid':
+                    color = line_color[1]
+                elif marker_color is not None and marker_color[0] == 'solid':
+                    color = marker_color[1]
+                ax.plot(xt, yt, zt, color=color, linewidth=lw, label=name or None)
+
+            if marker_color is not None and marker_color[0] == 'array':
+                values = marker_color[1]
+                cmap = _colorscale_of(marker)
+                norm = mcolors.Normalize(vmin=float(np.nanmin(values)),
+                                         vmax=float(np.nanmax(values)))
+                ax.scatter(xt, yt, zt, c=values, cmap=cmap, norm=norm, s=8)
+                if colorbar_values is None:
+                    colorbar_values = values
+                    colorbar_cmap = cmap
+                    colorbar_label = _text_of(getattr(
+                        getattr(marker, 'colorbar', None), 'title', None)) or 'Color'
+            elif 'markers' in mode:
+                color = None
+                if marker_color is not None and marker_color[0] == 'solid':
+                    color = marker_color[1]
+                elif line_color is not None and line_color[0] == 'solid':
+                    color = line_color[1]
+                ax.scatter(xt, yt, zt, color=color, s=8,
+                           label=None if 'lines' in mode else (name or None))
+
+        ax.set_xlabel(_text_of(getattr(_xaxis, 'title', None)))
+        ax.set_ylabel(_text_of(getattr(_yaxis, 'title', None)))
+        ax.set_zlabel(_text_of(getattr(_zaxis, 'title', None)))
+
+        def _set_limits(arrays, setter):
+            if not arrays:
+                return
+            try:
+                values = np.concatenate([np.ravel(a) for a in arrays if np.size(a)])
+            except Exception:
+                return
+            values = values[np.isfinite(values)]
+            if values.size == 0:
+                return
+            low, high = float(values.min()), float(values.max())
+            if high <= low:
+                high = low + 1.0
+            padding = 0.06 * (high - low)
+            setter(low - padding, high + padding)
+
+        _set_limits(xs_all, ax.set_xlim)
+        _set_limits(ys_all, ax.set_ylim)
+        _set_limits(zs_all, ax.set_zlim)
+
+        for flag, lim, ticks_setter, labels_setter in (
+                (log_flags['x'], ax.get_xlim, ax.set_xticks, ax.set_xticklabels),
+                (log_flags['y'], ax.get_ylim, ax.set_yticks, ax.set_yticklabels),
+                (log_flags['z'], ax.get_zlim, ax.set_zticks, ax.set_zticklabels)):
+            if not flag:
+                continue
+            try:
+                low, high = lim()
+                first, last = int(np.ceil(low)), int(np.floor(high))
+                if last < first:
+                    continue
+                step = max(1, int(np.ceil((last - first) / 8.0)))
+                tick_values = list(range(first, last + 1, step))
+                if not tick_values:
+                    continue
+                ticks_setter(tick_values)
+                labels_setter([f'$10^{{{t}}}$' for t in tick_values])
+            except Exception:
+                pass
+
+        layout_title = getattr(fig.layout, 'title', None)
+        title = layout_title if isinstance(layout_title, str) else _text_of(getattr(layout_title, 'text', None))
+        if title:
+            ax.set_title(title, fontweight='bold')
+
+        try:
+            aspectmode = getattr(scene, 'aspectmode', None)
+            aspectratio = getattr(scene, 'aspectratio', None)
+            if aspectmode == 'manual' and aspectratio is not None:
+                ax.set_box_aspect((float(getattr(aspectratio, 'x', 1) or 1),
+                                   float(getattr(aspectratio, 'y', 1) or 1),
+                                   float(getattr(aspectratio, 'z', 1) or 1)))
+        except Exception:
+            pass
+
+        if len(traces) > 1:
+            try:
+                ax.legend(loc='upper left', fontsize=8,
+                          prop={'family': 'Times New Roman'})
+            except Exception:
+                pass
+        if colorbar_values is not None:
+            try:
+                mappable = cm.ScalarMappable(
+                    norm=mcolors.Normalize(vmin=float(np.nanmin(colorbar_values)),
+                                           vmax=float(np.nanmax(colorbar_values))),
+                    cmap=colorbar_cmap)
+                mappable.set_array(colorbar_values)
+                cbar = mfig.colorbar(mappable, ax=ax, shrink=0.7, pad=0.08)
+                if colorbar_label:
+                    cbar.set_label(colorbar_label, fontweight='bold')
+            except Exception:
+                pass
+
+        for label in (ax.get_xticklabels() + ax.get_yticklabels() + ax.get_zticklabels()):
+            label.set_fontfamily('Times New Roman')
+        for setter, getter in ((ax.set_xlabel, ax.get_xlabel),
+                               (ax.set_ylabel, ax.get_ylabel),
+                               (ax.set_zlabel, ax.get_zlabel)):
+            setter(getter(), fontfamily='Times New Roman', fontweight='bold')
+        mfig.subplots_adjust(left=0.02, right=0.88, bottom=0.02, top=0.92)
+        return mfig
+
     def _export_current_plot(self, filepath, fmt):
         settings = get_settings()
         dpi = settings.get_plot_setting('export_dpi', 300)
-        
+
         current_tab = self.tabs.currentIndex()
-        
-        if current_tab == 0:
-            self.matplotlib_widget.fig.savefig(filepath, dpi=dpi, bbox_inches='tight', 
-                                               facecolor='white', edgecolor='none')
-        
-        elif current_tab == 1:
-            if self._use_plotly and self.plotly_widget._current_figure is not None:
-                try:
+
+        try:
+            if current_tab == 0:
+                self.matplotlib_widget.fig.savefig(filepath, dpi=dpi, bbox_inches='tight',
+                                                   facecolor='white', edgecolor='none')
+
+            elif current_tab == 1:
+                if self._use_plotly and self.plotly_widget._current_figure is not None:
                     if fmt == 'html':
-                        pio.write_html(self.plotly_widget._current_figure, filepath, 
+                        pio.write_html(self.plotly_widget._current_figure, filepath,
                                        include_plotlyjs='cdn', full_html=True)
                     else:
-                        # In frozen/compiled app, kaleido has compatibility issues
-                        # Show message to user to use HTML export instead
-                        title = tr("Export Format Not Supported")
-                        msg = tr("3D plot image export (PNG/JPG/SVG) is not supported in the compiled application.\n\n"
-                                "Please use HTML format for 3D plot export.\n\n"
-                                "HTML export provides:\n"
-                                "- Interactive 3D visualization\n"
-                                "- Zoom, rotate, pan\n"
-                                "- Smaller file size\n"
-                                "- Works in any web browser")
-                        QMessageBox.information(self, title, msg)
-                        return
-                except Exception as e:
-                    QMessageBox.warning(self, "Export Error", 
-                                       f"Failed to export Plotly figure:\n{str(e)}")
-            elif not self._use_plotly and hasattr(self.plotly_widget, 'fig'):
-                self.plotly_widget.fig.savefig(filepath, dpi=dpi, bbox_inches='tight',
-                                               facecolor='white', edgecolor='none')
-        
-        elif current_tab == 2:
-            self.projections_plotly.fig.savefig(filepath, dpi=dpi, bbox_inches='tight',
-                                               facecolor='white', edgecolor='none')
-        
-        elif current_tab == 3:
-            QMessageBox.information(self, "Export", 
-                                   "Data Table tab cannot be exported as image.\n"
-                                   "Please use the Export button in the data table to export as Excel.")
+                        # kaleido is unreliable in the compiled application, so
+                        # convert the Plotly 3D figure to matplotlib and export it
+                        mfig = self._plotly_figure_to_matplotlib(
+                            self.plotly_widget._current_figure)
+                        mfig.savefig(filepath, dpi=dpi, bbox_inches='tight',
+                                     facecolor='white', edgecolor='none')
+                elif not self._use_plotly and hasattr(self.plotly_widget, 'fig'):
+                    self.plotly_widget.fig.savefig(filepath, dpi=dpi, bbox_inches='tight',
+                                                   facecolor='white', edgecolor='none')
+                else:
+                    QMessageBox.information(self, tr("Export"),
+                                            tr("No 3D plot to export.\nPlease draw a 3D plot first."))
+                    return
+
+            elif current_tab == 2:
+                self.projections_plotly.fig.savefig(filepath, dpi=dpi, bbox_inches='tight',
+                                                    facecolor='white', edgecolor='none')
+
+            elif current_tab == 3:
+                QMessageBox.information(self, "Export",
+                                       "Data Table tab cannot be exported as image.\n"
+                                       "Please use the Export button in the data table to export as Excel.")
+                return
+        except Exception as e:
+            QMessageBox.warning(self, tr("Export Error"),
+                                tr("Failed to export image:\n{}").format(str(e)))
             return
-        
+
         self.status_label.setText(f"Exported to {filepath}")
     
     def get_matplotlib_widget(self):
