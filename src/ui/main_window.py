@@ -9,7 +9,7 @@ three-panel layout, log area, and status bar
 """
 import os, sys, glob, numpy as np
 from typing import Optional
-from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QMenuBar, QMenu, QAction, QActionGroup, QToolBar, QStatusBar, QSplitter, QFileDialog, QMessageBox, QLabel, QApplication, QProgressBar, QStackedWidget, QTabWidget, QDialog, QFormLayout, QSpinBox, QDoubleSpinBox, QDialogButtonBox, QScrollArea, QCheckBox, QComboBox, QLineEdit, QFrame, QSizePolicy
+from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QMenuBar, QMenu, QAction, QActionGroup, QToolBar, QStatusBar, QSplitter, QFileDialog, QMessageBox, QLabel, QApplication, QProgressBar, QStackedWidget, QTabWidget, QDialog, QFormLayout, QSpinBox, QDoubleSpinBox, QDialogButtonBox, QScrollArea, QCheckBox, QComboBox, QLineEdit
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QSize
 from PyQt5.QtGui import QFont, QIcon
 
@@ -33,7 +33,7 @@ from utils.config import Config
 from utils.i18n import tr
 from utils.settings import get_settings
 from utils.themes import get_theme_manager, apply_theme
-from utils.responsive import get_screen_info, get_ui_scale
+from utils.responsive import get_screen_info
 
 class WorkerThread(QThread):
     __doc__ = "Background thread for running processing tasks"
@@ -174,15 +174,6 @@ class MainWindow(QMainWindow):
             theme_manager.set_theme(saved_theme)
             apply_theme()
             print("[MainWindow] Step 24: Theme applied")
-
-            print("[MainWindow] Step 24b: Applying saved interface font scale...")
-            try:
-                get_ui_scale().set_from_font_point_size(self.settings.get_font_size())
-                self._apply_ui_scale_to_widgets()
-                self._fit_splitter_to_content(initial=True)
-                print("[MainWindow] Interface font scale applied")
-            except Exception as e:
-                print(f"[MainWindow] Failed to apply interface font scale: {e}")
             
             print("[MainWindow] Step 25: Loading last folder...")
             last_folder = self.settings.get_last_folder()
@@ -309,17 +300,6 @@ class MainWindow(QMainWindow):
             action.triggered.connect(lambda _, s=size: self._set_plot_font_size("legend", s))
             self.legend_font_action_group.addAction(action)
             legend_font_menu.addAction(action)
-        self.annotation_font_action_group = QActionGroup(self)
-        self.annotation_font_action_group.setExclusive(True)
-        current_annotation_font = self.settings.get_plot_setting("annotation_font_size", 12)
-        annotation_font_menu = plot_font_menu.addMenu(tr("Annotation Font Size", "LAOSAnalysis"))
-        for size in [8, 10, 12, 14, 16, 18]:
-            action = QAction(tr(f"{size}pt", "LAOSAnalysis"), self)
-            action.setCheckable(True)
-            action.setChecked(size == current_annotation_font)
-            action.triggered.connect(lambda _, s=size: self._set_plot_font_size("annotation", s))
-            self.annotation_font_action_group.addAction(action)
-            annotation_font_menu.addAction(action)
         self.font_family_action_group = QActionGroup(self)
         self.font_family_action_group.setExclusive(True)
         current_font_family = self.settings.get_plot_setting("font_family", "Times New Roman")
@@ -441,9 +421,6 @@ class MainWindow(QMainWindow):
         plot_6q_action = QAction(tr("Q Value", "LAOSAnalysis"), self)
         plot_6q_action.triggered.connect(lambda: self._on_quick_plot_menu("6q"))
         fourier_single_menu.addAction(plot_6q_action)
-        plot_6p_action = QAction(tr("Phase Angle Change", "LAOSAnalysis"), self)
-        plot_6p_action.triggered.connect(lambda: self._on_quick_plot_menu("6p"))
-        fourier_single_menu.addAction(plot_6p_action)
         plot_fourier_multi_action = QAction(tr("Multi-Order Fourier Coefficients", "LAOSAnalysis"), self)
         plot_fourier_multi_action.triggered.connect(lambda: self._on_quick_plot_menu("5"))
         plot_menu.addAction(plot_fourier_multi_action)
@@ -463,7 +440,7 @@ class MainWindow(QMainWindow):
         plot_7b_action.triggered.connect(lambda: self._on_quick_plot_menu("7b"))
         spp_menu.addAction(plot_7b_action)
         cage_menu = plot_menu.addMenu(tr("Cage Modulus", "LAOSAnalysis"))
-        plot_10a_action = QAction(tr("G_cage/G′_lin vs Strain", "LAOSAnalysis"), self)
+        plot_10a_action = QAction(tr("G'/G_cage vs Strain", "LAOSAnalysis"), self)
         plot_10a_action.triggered.connect(lambda: self._on_quick_plot_menu("10a"))
         cage_menu.addAction(plot_10a_action)
         plot_10b_action = QAction(tr("G_cage vs Strain", "LAOSAnalysis"), self)
@@ -687,8 +664,11 @@ class MainWindow(QMainWindow):
         self._toolbar.setMovable(False)
         top_layout.addWidget(self._toolbar)
 
-        self.top_container.setMaximumHeight(get_ui_scale().scaled(200))
+        self.top_container.setMaximumHeight(200)
         self.v_splitter.addWidget(self.top_container)
+
+        self._build_menu_bar_content()
+        self._build_toolbar_content()
 
         content_widget = QWidget()
         content_layout = QHBoxLayout(content_widget)
@@ -719,15 +699,10 @@ class MainWindow(QMainWindow):
         self.middle_stack.setCurrentIndex(0)
         self.h_splitter.addWidget(self.middle_stack)
         self.control_panel = ControlPanel()
-        # Keep the analysis panel fully visible (no scrollbars) and never let
-        # it be squeezed below its content, so text cannot overlap the borders.
-        self.control_panel.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.h_splitter.addWidget(self.control_panel)
-        self.h_splitter.setStretchFactor(2, 0)
-        self.h_splitter.setCollapsible(0, True)
-        self.h_splitter.setCollapsible(1, True)
-        self.h_splitter.setCollapsible(2, False)
-        self.h_splitter.setSizes([280, 840, 320])
+        left_width, middle_width, right_width = screen_info.get_panel_widths()
+        self.h_splitter.setSizes([left_width, middle_width, right_width])
+        self.h_splitter.setSizes([280, 840, 280])
         content_layout.addWidget(self.h_splitter)
 
         self.v_splitter.addWidget(content_widget)
@@ -735,17 +710,12 @@ class MainWindow(QMainWindow):
         self.v_splitter.setStretchFactor(1, 1)
         main_layout.addWidget(self.v_splitter)
 
-        # Build menu bar and toolbar AFTER log_panel is created,
-        # since _build_menu_bar_content connects to self.log_panel.clear_log.
-        self._build_menu_bar_content()
-        self._build_toolbar_content()
-
     def _create_status_bar(self):
         """Create status bar"""
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_label = QLabel(tr("Ready", "StatusBar"))
-        self.status_label.setMinimumWidth(get_ui_scale().scaled(200))
+        self.status_label.setMinimumWidth(200)
         self.status_bar.addWidget(self.status_label, 1)
         self.processing_label = QLabel("")
         self.processing_label.setStyleSheet("color: #2196F3; font-weight: bold;")
@@ -754,7 +724,7 @@ class MainWindow(QMainWindow):
         self.file_count_label = QLabel(tr("Files:", "StatusBar") + " 0")
         self.status_bar.addPermanentWidget(self.file_count_label)
         self.folder_label = QLabel(tr("Folder:", "StatusBar") + " -")
-        self.folder_label.setMinimumWidth(get_ui_scale().scaled(150))
+        self.folder_label.setMinimumWidth(150)
         self.status_bar.addPermanentWidget(self.folder_label)
         self.omega_label = QLabel("ω: -")
         self.status_bar.addPermanentWidget(self.omega_label)
@@ -876,7 +846,7 @@ class MainWindow(QMainWindow):
         
         dialog = QDialog(self)
         dialog.setWindowTitle(tr("Input Frequency", "Messages"))
-        dialog.setMinimumWidth(get_ui_scale().scaled(400))
+        dialog.setMinimumWidth(400)
         layout = QVBoxLayout(dialog)
         
         info_label = QLabel(tr("Preprocessed data detected in this folder.\nPlease enter the frequency used during preprocessing for ST/SPP calculation.", "Messages"))
@@ -901,7 +871,7 @@ class MainWindow(QMainWindow):
         layout.addLayout(form_layout)
         
         hint_label = QLabel(tr("Hint: input 1 means frequency is 1 Hz", "Messages"))
-        hint_label.setStyleSheet(f"color: gray; font-size: {get_ui_scale().scaled(10)}px;")
+        hint_label.setStyleSheet("color: gray; font-size: 10px;")
         layout.addWidget(hint_label)
         
         skip_btn = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -1054,7 +1024,7 @@ class MainWindow(QMainWindow):
         
         dialog = QDialog(self)
         dialog.setWindowTitle(tr("Quick Plot", "Messages") + f" - {plot_type}")
-        dialog.setMinimumWidth(get_ui_scale().scaled(350))
+        dialog.setMinimumWidth(350)
         layout = QVBoxLayout(dialog)
         
         form_layout = QFormLayout()
@@ -1080,12 +1050,7 @@ class MainWindow(QMainWindow):
             spin = QSpinBox()
             spin.setMinimum(1)
             spin.setMaximum(50)
-            # control_panel.harmonics_spin is a QLineEdit in this build
-            try:
-                current_harmonic = int(self.control_panel.harmonics_spin.text().strip() or "3")
-            except (AttributeError, ValueError):
-                current_harmonic = 3
-            spin.setValue(max(1, min(50, current_harmonic)))
+            spin.setValue(self.control_panel.harmonics_spin.value())
             form_layout.addRow(tr("Harmonics:", "ControlPanel"), spin)
             widgets["harmonics"] = spin
         
@@ -1200,7 +1165,7 @@ class MainWindow(QMainWindow):
         
         dialog = QDialog(self)
         dialog.setWindowTitle(tr("Frequency Input", "Messages"))
-        dialog.setMinimumWidth(get_ui_scale().scaled(450))
+        dialog.setMinimumWidth(450)
         layout = QVBoxLayout(dialog)
         
         info_label = QLabel(tr("Please enter the oscillation frequency of the experiment", "Messages"))
@@ -1216,14 +1181,20 @@ class MainWindow(QMainWindow):
         freq_spin.setDecimals(4)
         freq_spin.setToolTip(tr("Oscillation frequency value", "Messages"))
         
+        pi_label = QLabel("π")
+        pi_label.setVisible(False)
+        freq_layout.addWidget(pi_label)
+        
         unit_combo = QComboBox()
         unit_combo.addItems(["Hz", "rad/s"])
-        unit_combo.setToolTip(tr("Select frequency unit: Hz or rad/s", "Messages"))
+        unit_combo.setToolTip(tr("Select frequency unit: Hz (ordinary frequency) or rad/s (angular frequency ω, unit is π)", "Messages"))
         
         def on_unit_changed(unit):
             if unit == "rad/s":
-                hint_label.setText(tr("Hint: input angular frequency directly in rad/s", "Messages"))
+                pi_label.setVisible(True)
+                hint_label.setText(tr("Hint: rad/s unit is π, input 2 means 2π rad/s = 1 Hz", "Messages"))
             else:
+                pi_label.setVisible(False)
                 hint_label.setText(tr("Hint: input 1 means frequency is 1 Hz", "Messages"))
         
         unit_combo.currentTextChanged.connect(on_unit_changed)
@@ -1235,7 +1206,7 @@ class MainWindow(QMainWindow):
         layout.addLayout(form_layout)
         
         hint_label = QLabel(tr("Hint: input 1 means frequency is 1 Hz", "Messages"))
-        hint_label.setStyleSheet(f"color: gray; font-size: {get_ui_scale().scaled(10)}px;")
+        hint_label.setStyleSheet("color: gray; font-size: 10px;")
         layout.addWidget(hint_label)
         
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -1248,13 +1219,13 @@ class MainWindow(QMainWindow):
             unit = unit_combo.currentText()
             
             if unit == "rad/s":
-                omega = freq_value
+                omega = freq_value * np.pi
                 frequency_hz = omega / (2 * np.pi)
-                self.log_panel.append_log(f"Input: ω = {omega:.4f} rad/s = {frequency_hz:.2f} Hz", "INFO")
+                self.log_panel.append_log(f"Input: {freq_value}π rad/s = {omega:.2f} rad/s = {frequency_hz:.2f} Hz", "INFO")
             else:
                 frequency_hz = freq_value
                 omega = 2 * np.pi * freq_value
-                self.log_panel.append_log(f"Input frequency: {frequency_hz:.2f} Hz = {omega:.4f} rad/s", "INFO")
+                self.log_panel.append_log(f"Input frequency: {frequency_hz:.2f} Hz = {omega:.2f} rad/s", "INFO")
             
             self.data_processor.set_folder_path(folder_path)
             self.data_processor.set_frequency(frequency_hz)
@@ -1291,7 +1262,7 @@ class MainWindow(QMainWindow):
         
         dialog = QDialog(self)
         dialog.setWindowTitle(tr("TA Excel Processing", "Messages"))
-        dialog.setMinimumWidth(get_ui_scale().scaled(400))
+        dialog.setMinimumWidth(400)
         layout = QVBoxLayout(dialog)
         
         form_layout = QFormLayout()
@@ -1304,25 +1275,31 @@ class MainWindow(QMainWindow):
         freq_spin.setValue(1.0)
         freq_spin.setDecimals(4)
         
+        pi_label = QLabel("π")
+        pi_label.setVisible(False)
+        
         unit_combo = QComboBox()
         unit_combo.addItems(["Hz", "rad/s"])
         
         def on_unit_changed(unit):
             if unit == "rad/s":
-                hint_label.setText(tr("Hint: input angular frequency directly in rad/s", "Messages"))
+                pi_label.setVisible(True)
+                hint_label.setText(tr("Hint: rad/s unit is π, enter 2 means 2π rad/s = 1 Hz", "Messages"))
             else:
+                pi_label.setVisible(False)
                 hint_label.setText(tr("Hint: input 1 means frequency is 1 Hz", "Messages"))
         
         unit_combo.currentTextChanged.connect(on_unit_changed)
         
         freq_layout.addWidget(freq_spin)
+        freq_layout.addWidget(pi_label)
         freq_layout.addWidget(unit_combo)
         
         form_layout.addRow(QLabel(tr("Frequency:", "Messages")), freq_layout)
         layout.addLayout(form_layout)
         
         hint_label = QLabel(tr("Hint: input 1 means frequency is 1 Hz", "Messages"))
-        hint_label.setStyleSheet(f"color: gray; font-size: {get_ui_scale().scaled(10)}px;")
+        hint_label.setStyleSheet("color: gray; font-size: 10px;")
         layout.addWidget(hint_label)
         
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -1336,13 +1313,13 @@ class MainWindow(QMainWindow):
             
             # Calculate frequency in Hz
             if unit == "rad/s":
-                omega = freq_value
+                omega = freq_value * np.pi
                 frequency_hz = omega / (2 * np.pi)
-                self.log_panel.append_log(f"Input: ω = {omega:.4f} rad/s = {frequency_hz:.2f} Hz", "INFO")
+                self.log_panel.append_log(f"Input: {freq_value}π rad/s = {omega:.2f} rad/s = {frequency_hz:.2f} Hz", "INFO")
             else:
                 frequency_hz = freq_value
                 omega = 2 * np.pi * freq_value
-                self.log_panel.append_log(f"Input frequency: {frequency_hz:.2f} Hz = {omega:.4f} rad/s", "INFO")
+                self.log_panel.append_log(f"Input frequency: {frequency_hz:.2f} Hz = {omega:.2f} rad/s", "INFO")
             
             self._ta_excel_frequency = frequency_hz
             self._ta_excel_sheets_info = sheets_info
@@ -1455,7 +1432,7 @@ class MainWindow(QMainWindow):
         omega = preprocessed_freq * 2 * np.pi if preprocessed_freq else 2 * np.pi
         
         # For ST and SPP plots, use preprocessed frequency directly
-        if plot_type in ('4', '7a', '7d', '7b'):
+        if plot_type in ('4', '7a', '7b'):
             print(f"[DEBUG] ST/SPP plot requested: preprocessed_freq={preprocessed_freq}, _is_preprocessed={self._is_preprocessed}")
             if preprocessed_freq is None:
                 QMessageBox.warning(self, "Warning", tr("Please run preprocessing first to set frequency parameter.", "Messages"))
@@ -1523,7 +1500,6 @@ class MainWindow(QMainWindow):
                     subtype_name = "Elastic" if plot_type == '3b' else "Viscous"
                     norm_status = "normalized" if use_normalized else "original"
                     self.log_panel.append_log(f"{subtype_name} Lissajous Overlay ({norm_status}): {len(file_indices)} files", "INFO")
-                self.log_panel.append_log(f"3D SPP + Frenet plotted: file {file_index}", "INFO")
             
             elif plot_type == '4':
                 marker_size = params.get('marker_size', 50)
@@ -1549,13 +1525,6 @@ class MainWindow(QMainWindow):
                 self.plotter.plot_q_value(self.plot_widget.get_matplotlib_widget(), marker_size)
                 self.plot_widget.set_current_tab(0)
             
-            elif plot_type == '6p':
-                harmonic_n = params.get('harmonics', 3)
-                marker_size = params.get('marker_size', 50)
-                self.plotter.plot_fourier_phase(self.plot_widget.get_matplotlib_widget(), harmonic_n, marker_size)
-                self.plot_widget.set_current_tab(0)
-                self.log_panel.append_log(f"Fourier phase angle plotted: n={harmonic_n}", "INFO")
-            
             elif plot_type == '7a':
                 file_index = params.get('file_index', 0)
                 harmonics = params.get('harmonics', 15)
@@ -1563,23 +1532,9 @@ class MainWindow(QMainWindow):
                 marker_size = params.get('marker_size', 50)
                 self.plotter.set_omega(omega)
                 self.plotter.plot_spp_method(self.plot_widget.get_matplotlib_widget(),
-                                             file_index, harmonics, data_range, marker_size,
-                                             method='fourier')
+                                             file_index, harmonics, data_range, marker_size)
                 self.plot_widget.set_current_tab(0)
-                self.log_panel.append_log(f"SPP-Fourier plotted: file {file_index}", "INFO")
-
-            elif plot_type == '7d':
-                file_index = params.get('file_index', 0)
-                harmonics = params.get('harmonics', 15)
-                data_range = params.get('data_range', 0)
-                marker_size = params.get('marker_size', 50)
-                self.plotter.set_omega(omega)
-                self.plotter.plot_spp_method(self.plot_widget.get_matplotlib_widget(),
-                                             file_index, harmonics, data_range, marker_size,
-                                             method='numerical')
-                self.plot_widget.set_current_tab(0)
-                self.log_panel.append_log(f"SPP-Derivative plotted: file {file_index}", "INFO")
-
+            
             elif plot_type == '7b':
                 files_str = params.get('files_edit', '')
                 harmonics = params.get('harmonics', 15)
@@ -1595,8 +1550,7 @@ class MainWindow(QMainWindow):
                         legend_titles=title_opts.get('custom_titles'),
                         harmonics=harmonics,
                         data_range=data_range,
-                        marker_size=marker_size,
-                        method='fourier'
+                        marker_size=marker_size
                     )
                     self.plot_widget.set_current_tab(0)
                     self.log_panel.append_log(f"SPP Overlay: {len(file_indices)} files", "INFO")
@@ -1825,160 +1779,18 @@ class MainWindow(QMainWindow):
     def _set_font_size(self, size: int):
         """
         Set application font size
-
+        
         Args:
             size: Font size in points (8, 10, 12, 14)
         """
-        ui_scale = get_ui_scale()
-        ui_scale.set_from_font_point_size(size)
-
-        self._apply_ui_scale_to_widgets()
-
-        # Grow the window and fit the analysis panel's full content, but never
-        # beyond the available screen so controls stay reachable.
-        screen_info = get_screen_info()
-        screen_width, screen_height = screen_info.screen_size
-        scale = ui_scale.scale
-        min_width = min(Config.WINDOW_MIN_WIDTH, int(screen_width * 0.6))
-        min_height = min(Config.WINDOW_MIN_HEIGHT, int(screen_height * 0.6))
-        self.setMinimumSize(
-            min(min_width, int(900 * scale)),
-            min(min_height, int(650 * scale)),
-        )
-        self._fit_splitter_to_content()
-        self.settings.set_font_size(size)
-
-        self.log_panel.append_log(f"Font size changed to: {size}pt", "INFO")
-
-    def _fit_splitter_to_content(self, initial: bool = False):
-        """Size the three panels so the analysis panel shows its full content.
-
-        The analysis (control) panel keeps its complete width; the remaining
-        space is shared between the left and middle panels, and the window is
-        grown when needed (clamped to the available screen).
-        """
-        screen_info = get_screen_info()
-        screen_width, screen_height = screen_info.screen_size
-        scale = get_ui_scale().scale
-        left_need, right_need = self._panel_minimum_widths()
-        avail = int(screen_width * 0.98)
-        mid_min = int(320 * scale)
-
-        # Prefer the current window width; only grow when the analysis panel
-        # does not fit, and never beyond the available screen.
-        required = left_need + mid_min + right_need
-        current_w = max(int(self.width()), self.minimumWidth())
-        content_w = min(avail, max(current_w, required))
-        remaining = max(0, content_w - right_need)
-        left_w = min(remaining, max(left_need, int(remaining * 0.35)))
-        mid_w = max(0, remaining - left_w)
-        right_w = right_need
-
-        # Vertical: make sure the whole analysis panel is visible (menu bar,
-        # toolbar and status bar take some of the window height).
-        chrome = 0
-        for attr in ('_menu_bar', '_toolbar'):
-            widget = getattr(self, attr, None)
-            if widget is not None:
-                chrome += widget.sizeHint().height()
-        if hasattr(self, 'status_bar'):
-            chrome += self.status_bar.sizeHint().height()
-        panel_need_h = 0
-        if hasattr(self, 'control_panel'):
-            panel_need_h = self._fresh_panel_min_height(self.control_panel)
-        # Add a safety margin: layouts can grow a few pixels more once the
-        # window is resized, so a zero-margin exact fit can clip the last row.
-        needed_h = panel_need_h + chrome + int(36 * scale)
-        current_h = max(int(self.height()), self.minimumHeight())
-        target_height = min(int(screen_height * 0.98), max(current_h, needed_h))
-
-        # Guarantee the analysis panel is always fully visible: never allow the
-        # window to be resized below the size its content needs (clamped to the
-        # usable screen so the window can still be manipulated).
-        self.setMinimumSize(min(required, avail),
-                            min(needed_h, int(screen_height * 0.95)))
-
-        if hasattr(self, 'h_splitter'):
-            self.h_splitter.setSizes([left_w, mid_w, right_w])
-        self.resize(max(self.minimumWidth(), content_w),
-                    max(self.minimumHeight(), target_height))
-
-    def _panel_minimum_widths(self):
-        """Return the minimum widths needed by the left and analysis panels."""
-        left_need = int(280 * get_ui_scale().scale)
-        right_need = int(300 * get_ui_scale().scale)
-        if hasattr(self, 'left_panel'):
-            left_need = max(left_need, self.left_panel.minimumSizeHint().width())
-        if hasattr(self, 'control_panel'):
-            right_need = max(right_need, self._fresh_panel_size_hint(self.control_panel).width())
-        return left_need, right_need
-
-    @staticmethod
-    def _fresh_panel_size_hint(widget):
-        """Return an up-to-date size hint for a widget.
-
-        Qt caches size hints and can report a stale value for one font step
-        after a stylesheet change, so force a layout recalculation first.
-        """
-        try:
-            widget.ensurePolished()
-            layout = widget.layout()
-            if layout is not None:
-                layout.activate()
-        except Exception:
-            pass
-        return widget.sizeHint()
-
-    @staticmethod
-    def _fresh_panel_min_height(widget):
-        """Return an up-to-date minimum height for a widget."""
-        try:
-            widget.ensurePolished()
-            layout = widget.layout()
-            if layout is not None:
-                layout.activate()
-        except Exception:
-            pass
-        return widget.minimumSizeHint().height()
-
-    def _apply_ui_scale_to_widgets(self):
-        """Push the current UI scale into fonts, stylesheet and fixed sizes.
-
-        Safe to call both at startup (after widgets exist) and whenever the
-        interface font changes.
-        """
-        from PyQt5.QtWidgets import QApplication as _QApp
-        from PyQt5.QtGui import QFont as _QFont
-        ui_scale = get_ui_scale()
-        font = _QFont("Segoe UI")
-        font.setPointSizeF(ui_scale.font_point_size())
-        font.setStyleStrategy(_QFont.PreferAntialias)
-        font.setHintingPreference(_QFont.PreferFullHinting)
-        app = _QApp.instance()
-        if app is not None:
-            app.setFont(font)
+        font = QFont("Segoe UI", size)
+        font.setStyleStrategy(QFont.PreferAntialias)
+        font.setHintingPreference(QFont.PreferFullHinting)
         self.setFont(font)
-
-        # Regenerate the stylesheet from the new UI scale so every QSS
-        # height/padding/font metric grows with the font and text no longer
-        # overflows its container.
-        apply_theme()
-
-        # Rescale fixed-size widgets that live outside the stylesheet.
-        ui_scale.refresh()
-        self._apply_scaled_layout()
-
-    def _apply_scaled_layout(self):
-        """Re-apply scaled fixed layout metrics that Qt does not recompute."""
-        ui_scale = get_ui_scale()
-        if hasattr(self, 'top_container'):
-            self.top_container.setMaximumHeight(ui_scale.scaled(200))
-        if hasattr(self, 'status_label'):
-            self.status_label.setMinimumWidth(ui_scale.scaled(200))
-        if hasattr(self, 'folder_label'):
-            self.folder_label.setMinimumWidth(ui_scale.scaled(150))
-        if hasattr(self, 'control_panel'):
-            self.control_panel.setMinimumWidth(self._fresh_panel_size_hint(self.control_panel).width())
+        for widget in self.findChildren(QWidget):
+            widget.setFont(font)
+        self.settings.set_font_size(size)
+        self.log_panel.append_log(f"Font size changed to: {size}pt", "INFO")
 
     def _set_plot_font_size(self, font_type: str, size: int):
         """
@@ -2146,9 +1958,8 @@ class MainWindow(QMainWindow):
 
     def _toggle_control_panel(self):
         """Toggle control panel visibility"""
-        target = self.control_panel
-        target.setVisible(not target.isVisible())
-        visible = "visible" if target.isVisible() else "hidden"
+        self.control_panel.setVisible(not self.control_panel.isVisible())
+        visible = "visible" if self.control_panel.isVisible() else "hidden"
         self.log_panel.append_log(f"Control panel {visible}", "INFO")
 
     def _change_language(self, lang_code: str):
@@ -2251,20 +2062,13 @@ class MainWindow(QMainWindow):
         elif data_type == "dissipation_rate":
             data_table.show_dissipation_rate(data_dict["strain"], data_dict["dissipation"])
         elif data_type == "cage_modulus":
-            if data_dict.get("plot_type") == "10b":
-                data_table.show_cage_modulus_gcage(data_dict["strain"], data_dict["G_cage"])
-            else:
-                data_table.show_cage_modulus(data_dict["strain"], data_dict["G_ratio"],
-                                             data_dict.get("G_cage"), data_dict.get("G_prime"),
-                                             data_dict.get("G_lin"))
+            data_table.show_cage_modulus(data_dict["strain"], data_dict["G_ratio"])
         elif data_type == "fourier_ratio":
             data_table.show_fourier_ratio(data_dict["strain"], data_dict["ratio"], data_dict["n"])
         elif data_type == "fourier_multi":
             data_table.show_fourier_multi_data(data_dict["data"], data_dict["max_harmonic"])
         elif data_type == "q_value":
             data_table.show_q_value(data_dict["strain"], data_dict["q_value"])
-        elif data_type == "fourier_phase":
-            data_table.show_fourier_phase(data_dict["strain"], data_dict["phase"], data_dict["n"])
         elif data_type == "different_strain_in_i1":
             data_table.show_different_strain_in_i1(data_dict["strains"], data_dict["ratios"], data_dict["n"])
         
@@ -2336,16 +2140,6 @@ class MainWindow(QMainWindow):
         author_content = QLabel(f'<h4>{author_name}</h4>')
         author_content.setAlignment(Qt.AlignCenter)
         layout.addWidget(author_content)
-        
-        layout.addSpacing(15)
-        
-        copyright_title = QLabel(f'<h3><b>{tr("Software Copyright Registration No.", "About")}:</b></h3>')
-        copyright_title.setAlignment(Qt.AlignCenter)
-        layout.addWidget(copyright_title)
-        
-        copyright_no = QLabel(f'<h4>软著登字第18259013号<br/>Software Copyright Registration No. 18259013</h4>')
-        copyright_no.setAlignment(Qt.AlignCenter)
-        layout.addWidget(copyright_no)
         
         layout.addSpacing(15)
         

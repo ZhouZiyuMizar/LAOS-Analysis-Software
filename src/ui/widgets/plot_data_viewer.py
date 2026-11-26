@@ -12,7 +12,6 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QTabWidget, QTabl
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QColor
 from utils.i18n import tr
-from utils.responsive import get_ui_scale
 
 class DataTableWidget(QWidget):
     __doc__ = "\n    Widget for displaying plot data in Excel-like table format\n    Embedded as a tab in the plot container\n    "
@@ -23,12 +22,6 @@ class DataTableWidget(QWidget):
         self._current_data = None
         self._current_headers = []
         self._current_title = ""
-        get_ui_scale().register(self)
-
-    def apply_ui_scale(self):
-        """Re-apply UI scale to scaled inline styles after a font change."""
-        if hasattr(self, 'title_label'):
-            self.title_label.setStyleSheet(f"font-weight: bold; font-size: {get_ui_scale().scaled(14)}px; color: #2196F3;")
 
     def _init_ui(self):
         """Initialize the user interface"""
@@ -36,7 +29,7 @@ class DataTableWidget(QWidget):
         layout.setContentsMargins(5, 5, 5, 5)
         header_layout = QHBoxLayout()
         self.title_label = QLabel(tr("Plot Data", "DataTable"))
-        self.title_label.setStyleSheet(f"font-weight: bold; font-size: {get_ui_scale().scaled(14)}px; color: #2196F3;")
+        self.title_label.setStyleSheet("font-weight: bold; font-size: 14px; color: #2196F3;")
         header_layout.addWidget(self.title_label)
         header_layout.addStretch()
         self.export_btn = QPushButton(tr("Export to Excel", "DataTable"))
@@ -52,7 +45,7 @@ class DataTableWidget(QWidget):
         header_layout.addWidget(self.clear_btn)
         layout.addLayout(header_layout)
         self.info_label = QLabel(tr("No data loaded", "DataTable"))
-        self.info_label.setStyleSheet(f"color: gray; font-size: {get_ui_scale().scaled(11)}px;")
+        self.info_label.setStyleSheet("color: gray; font-size: 11px;")
         layout.addWidget(self.info_label)
         self.table = QTableWidget()
         self.table.setAlternatingRowColors(True)
@@ -71,12 +64,11 @@ class DataTableWidget(QWidget):
         self.title_label.setText(self._current_title)
         if data.shape[1] >= 4:
             headers = [
-             tr("Index", "DataTable"),
+             tr("Time", "DataTable"),
              tr("Stress (σ)", "DataTable"),
              tr("Strain (γ)", "DataTable"),
              tr("Strain Rate (γ̇)", "DataTable")]
-            row_indices = np.arange(len(data)).reshape(-1, 1)
-            display_data = np.column_stack([row_indices, data[:, 1:4]])
+            display_data = data[:, :4]
         else:
             headers = [tr("Column " + str(i + 1), "DataTable") for i in range(data.shape[1])]
             display_data = data
@@ -137,6 +129,11 @@ class DataTableWidget(QWidget):
             tr("dGt''/dt", "DataTable")]
         self._populate_table(data, headers)
         self.info_label.setText(tr(f"Total {len(data)} data points", "DataTable"))
+
+        def show_spp_multi_data(self, file_numbers, folder_path):
+            pass
+
+
 
     def show_fourier_multi(self, file_list, max_harmonic, folder_path):
         """
@@ -222,25 +219,6 @@ class DataTableWidget(QWidget):
             tr("Strain (γ₀)", "DataTable"),
             tr("Q Value", "DataTable")]
         display_data = np.column_stack([strain_values, q_values])
-        self._populate_table(display_data, headers)
-        self.info_label.setText(tr(f"Total {len(strain_values)} data points", "DataTable"))
-
-    def show_fourier_phase(self, strain_values, phase_values, harmonic_n):
-        """
-        Show Fourier harmonic phase angle data (相位角变化)
-
-        Args:
-            strain_values: Array of strain amplitudes
-            phase_values: Array of phase angles delta_n in degrees
-            harmonic_n: Harmonic number n
-        """
-        sub_n = self._get_subscript(harmonic_n)
-        self._current_title = tr("Fourier Phase Angle", "DataTable") + f" (n={harmonic_n})"
-        self.title_label.setText(self._current_title)
-        headers = [
-            tr("Strain (γ)", "DataTable"),
-            f"δ{sub_n} (°)"]
-        display_data = np.column_stack([strain_values, phase_values])
         self._populate_table(display_data, headers)
         self.info_label.setText(tr(f"Total {len(strain_values)} data points", "DataTable"))
 
@@ -331,36 +309,20 @@ class DataTableWidget(QWidget):
         self._populate_table(display_data, headers)
         self.info_label.setText(tr(f"Total {len(strain)} data points", "DataTable"))
 
-    def show_cage_modulus(self, strain: np.ndarray, G_ratio: np.ndarray,
-                          G_cage: np.ndarray = None, G_prime: np.ndarray = None,
-                          G_lin: float = None):
+    def show_cage_modulus(self, strain: np.ndarray, G_ratio: np.ndarray):
         """
         Show cage modulus data
 
         Args:
             strain: Strain values
-            G_ratio: G_cage/G'_lin values (G'_lin fixed at the linear-region
-                     elastic modulus)
-            G_cage: Optional G_cage values per strain point
-            G_prime: Optional per-point G' values (for reference)
-            G_lin: Optional linear-region modulus G'_lin (fixed constant)
+            G_ratio: G'/G_cage ratio values
         """
-        title = "Cage Modulus  (G_cage/G′_lin)"
-        if G_lin is not None and np.isfinite(G_lin) and G_lin > 0:
-            title += f"   [G′_lin = {G_lin:.4g} Pa]"
-        self._current_title = title
+        self._current_title = "Cage Modulus"
         self.title_label.setText(self._current_title)
         headers = [
             tr("Strain", "DataTable"),
-            tr("G_cage/G′_lin", "DataTable")]
-        columns = [strain, G_ratio]
-        if G_cage is not None:
-            headers.append(tr("G_cage (Pa)", "DataTable"))
-            columns.append(G_cage)
-        if G_prime is not None:
-            headers.append(tr("G′ (Pa)", "DataTable"))
-            columns.append(G_prime)
-        display_data = np.column_stack(columns)
+            tr("$G'/G_{cage}$", "DataTable")]
+        display_data = np.column_stack([strain, G_ratio])
         self._populate_table(display_data, headers)
         self.info_label.setText(tr(f"Total {len(strain)} data points", "DataTable"))
 
@@ -372,11 +334,11 @@ class DataTableWidget(QWidget):
             strain: Strain values
             G_cage: G_cage values
         """
-        self._current_title = "Cage Modulus  (G_cage)"
+        self._current_title = "Cage Modulus ($G_{cage}$)"
         self.title_label.setText(self._current_title)
         headers = [
             tr("Strain", "DataTable"),
-            tr("G_cage (Pa)", "DataTable")]
+            tr("$G_{cage}$ (Pa)", "DataTable")]
         display_data = np.column_stack([strain, G_cage])
         self._populate_table(display_data, headers)
         self.info_label.setText(tr(f"Total {len(strain)} data points", "DataTable"))
@@ -678,10 +640,6 @@ class PlotDataViewer(QWidget):
 
     def show_fourier_ratio(self, strain_values, ratio_values, harmonics):
         self.data_table.show_fourier_ratio(strain_values, ratio_values, harmonics)
-        self.show()
-
-    def show_fourier_phase(self, strain_values, phase_values, harmonic_n):
-        self.data_table.show_fourier_phase(strain_values, phase_values, harmonic_n)
         self.show()
 
     def show_spp_multi_data(self, file_numbers, folder_path):

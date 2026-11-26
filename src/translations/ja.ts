@@ -233,8 +233,8 @@
 <context>
     <name>CageSubtypes</name>
     <message>
-        <source>G_cage/G′_lin vs Strain</source>
-        <translation>G_cage/G′_lin vs 歪み</translation>
+        <source>G'/G_cage vs Strain</source>
+        <translation>G'/G_cage vs 歪み</translation>
     </message>
     <message>
         <source>G_cage vs Strain</source>
@@ -250,10 +250,6 @@
     <message>
         <source>Q Value</source>
         <translation>Q値</translation>
-    </message>
-    <message>
-        <source>Phase Angle Change</source>
-        <translation>位相角変化</translation>
     </message>
 </context>
 <context>
@@ -274,12 +270,8 @@
 <context>
     <name>SPPSubtypes</name>
     <message>
-        <source>SPP-Fourier Calculation</source>
-        <translation>SPP-フーリエ計算</translation>
-    </message>
-    <message>
-        <source>SPP-Derivative Calculation</source>
-        <translation>SPP-微分計算</translation>
+        <source>Calculate &amp; Plot</source>
+        <translation>計算・描画</translation>
     </message>
     <message>
         <source>Multi-File Overlay</source>
@@ -311,10 +303,6 @@
     <message>
         <source>Select data range for plotting</source>
         <translation>プロット用のデータ範囲を選択</translation>
-    </message>
-    <message>
-        <source>Auto: keep odd harmonics while In/I1 &gt;= 1e-3 and In &gt;= 5x noise floor (n=3 always kept); Manual: enter N</source>
-        <translation>自動：In/I1 ≥ 1e-3 かつ In ≥ ノイズフロアの5倍の奇数高調波を保持（3次高調波 n=3 は常に保持）；手動：次数 N を入力</translation>
     </message>
 </context>
 <context>
@@ -750,10 +738,6 @@ HTMLエクスポートの利点：
         <translation>凡例フォントサイズ</translation>
     </message>
     <message>
-        <source>Annotation Font Size</source>
-        <translation>注釈フォントサイズ</translation>
-    </message>
-    <message>
         <source>Font Family</source>
         <translation>フォントファミリー</translation>
     </message>
@@ -1086,10 +1070,6 @@ HTMLエクスポートの利点：
         <translation>Q値</translation>
     </message>
     <message>
-        <source>Phase Angle Change</source>
-        <translation>位相角変化</translation>
-    </message>
-    <message>
         <source>Multi-Order Fourier Coefficients</source>
         <translation>多次数フーリエ係数</translation>
     </message>
@@ -1118,8 +1098,8 @@ HTMLエクスポートの利点：
         <translation>ケージモジュラス</translation>
     </message>
     <message>
-        <source>G_cage/G′_lin vs Strain</source>
-        <translation>G_cage/G′_lin vs 歪み</translation>
+        <source>G'/G_cage vs Strain</source>
+        <translation>G'/G_cage vs 歪み</translation>
     </message>
     <message>
         <source>G_cage vs Strain</source>
@@ -1236,38 +1216,6 @@ HTMLエクスポートの利点：
         <translation>Q値</translation>
     </message>
     <message>
-        <source>Fourier Phase Angle</source>
-        <translation>フーリエ位相角</translation>
-    </message>
-    <message>
-        <source>Harmonic n</source>
-        <translation>高調波 n</translation>
-    </message>
-    <message>
-        <source>ω (rad/s)</source>
-        <translation>ω (rad/s)</translation>
-    </message>
-    <message>
-        <source>Direction</source>
-        <translation>回転方向</translation>
-    </message>
-    <message>
-        <source>Radius |c|</source>
-        <translation>半径 |c|</translation>
-    </message>
-    <message>
-        <source>Phase (deg)</source>
-        <translation>位相 (°)</translation>
-    </message>
-    <message>
-        <source>Real</source>
-        <translation>実部</translation>
-    </message>
-    <message>
-        <source>Imag</source>
-        <translation>虚部</translation>
-    </message>
-    <message>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
@@ -1355,10 +1303,6 @@ Excelにエクスポートできません。</translation>
     <message>
         <source>Ziyu Zhou, Hongbin Zhang</source>
         <translation>周子愉，张洪斌</translation>
-    </message>
-    <message>
-        <source>Software Copyright Registration No.</source>
-        <translation>ソフトウェア著作権登録番号</translation>
     </message>
     <message>
         <source>Contact</source>

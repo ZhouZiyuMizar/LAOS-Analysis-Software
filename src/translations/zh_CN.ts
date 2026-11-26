@@ -11,10 +11,6 @@
 <context>
     <name>ControlPanel</name>
     <message>
-        <source>Auto</source>
-        <translation>自动</translation>
-    </message>
-    <message>
         <source>Colormap</source>
         <translation>颜色映射</translation>
     </message>
@@ -237,8 +233,8 @@
 <context>
     <name>CageSubtypes</name>
     <message>
-        <source>G_cage/G′_lin vs Strain</source>
-        <translation>G_cage/G′_lin vs 应变</translation>
+        <source>G'/G_cage vs Strain</source>
+        <translation>G'/G_cage vs 应变</translation>
     </message>
     <message>
         <source>G_cage vs Strain</source>
@@ -254,10 +250,6 @@
     <message>
         <source>Q Value</source>
         <translation>Q值</translation>
-    </message>
-    <message>
-        <source>Phase Angle Change</source>
-        <translation>相位角变化</translation>
     </message>
 </context>
 <context>
@@ -278,12 +270,8 @@
 <context>
     <name>SPPSubtypes</name>
     <message>
-        <source>SPP-Fourier Calculation</source>
-        <translation>SPP-傅里叶计算</translation>
-    </message>
-    <message>
-        <source>SPP-Derivative Calculation</source>
-        <translation>SPP-微分计算</translation>
+        <source>Calculate &amp; Plot</source>
+        <translation>计算并绘图</translation>
     </message>
     <message>
         <source>Multi-File Overlay</source>
@@ -315,10 +303,6 @@
     <message>
         <source>Select data range for plotting</source>
         <translation>选择用于绘图的数据范围</translation>
-    </message>
-    <message>
-        <source>Auto: keep odd harmonics while In/I1 &gt;= 1e-3 and In &gt;= 5x noise floor (n=3 always kept); Manual: enter N</source>
-        <translation>自动：仅保留 In/I1 ≥ 1e-3 且 In ≥ 5 倍噪声底的奇次谐波（始终保留三阶谐波 n=3）；手动：输入谐波数 N</translation>
     </message>
 </context>
 <context>
@@ -758,10 +742,6 @@ HTML导出提供：
         <translation>图例字体大小</translation>
     </message>
     <message>
-        <source>Annotation Font Size</source>
-        <translation>标注字体大小</translation>
-    </message>
-    <message>
         <source>Font Family</source>
         <translation>字体类型</translation>
     </message>
@@ -1094,10 +1074,6 @@ HTML导出提供：
         <translation>Q值</translation>
     </message>
     <message>
-        <source>Phase Angle Change</source>
-        <translation>相位角变化</translation>
-    </message>
-    <message>
         <source>Multi-Order Fourier Coefficients</source>
         <translation>多阶傅里叶系数</translation>
     </message>
@@ -1126,8 +1102,8 @@ HTML导出提供：
         <translation>笼子模量</translation>
     </message>
     <message>
-        <source>G_cage/G′_lin vs Strain</source>
-        <translation>G_cage/G′_lin vs 应变</translation>
+        <source>G'/G_cage vs Strain</source>
+        <translation>G'/G_cage vs 应变</translation>
     </message>
     <message>
         <source>G_cage vs Strain</source>
@@ -1203,38 +1179,6 @@ HTML导出提供：
         <source>Q Value</source>
         <translation>Q值</translation>
     </message>
-    <message>
-        <source>Fourier Phase Angle</source>
-        <translation>傅里叶相位角</translation>
-    </message>
-    <message>
-        <source>Harmonic n</source>
-        <translation>谐波 n</translation>
-    </message>
-    <message>
-        <source>ω (rad/s)</source>
-        <translation>ω (rad/s)</translation>
-    </message>
-    <message>
-        <source>Direction</source>
-        <translation>旋转方向</translation>
-    </message>
-    <message>
-        <source>Radius |c|</source>
-        <translation>半径 |c|</translation>
-    </message>
-    <message>
-        <source>Phase (deg)</source>
-        <translation>相位 (°)</translation>
-    </message>
-    <message>
-        <source>Real</source>
-        <translation>实部</translation>
-    </message>
-    <message>
-        <source>Imag</source>
-        <translation>虚部</translation>
-    </message>
 </context>
 <context>
     <name>About</name>
@@ -1285,10 +1229,6 @@ HTML导出提供：
     <message>
         <source>Ziyu Zhou, Hongbin Zhang</source>
         <translation>周子愉，张洪斌</translation>
-    </message>
-    <message>
-        <source>Software Copyright Registration No.</source>
-        <translation>软件著作权登记号</translation>
     </message>
     <message>
         <source>Contact</source>

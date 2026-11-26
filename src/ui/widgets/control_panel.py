@@ -7,12 +7,11 @@ ControlPanel Widget - PyQt5 widget for controlling data processing and plotting
 """
 from typing import Optional, List, Dict
 import math
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox, QPushButton, QComboBox, QLabel, QLineEdit, QSpinBox, QDoubleSpinBox, QProgressBar, QCheckBox, QMessageBox, QFrame, QSplitter, QMenu, QToolButton, QAction, QDialog, QDialogButtonBox, QTextEdit, QScrollArea, QSizePolicy, QStackedWidget
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox, QPushButton, QComboBox, QLabel, QLineEdit, QSpinBox, QDoubleSpinBox, QProgressBar, QCheckBox, QMessageBox, QFrame, QSplitter, QMenu, QToolButton, QAction, QDialog, QDialogButtonBox, QTextEdit, QScrollArea, QSizePolicy
 from PyQt5.QtCore import Qt, pyqtSignal, QThread
-from PyQt5.QtGui import QFont, QIcon, QImage, QPixmap, QIntValidator
+from PyQt5.QtGui import QFont, QIcon, QImage, QPixmap
 from utils.config import Config
 from utils.i18n import tr
-from utils.responsive import get_ui_scale
 from ui.widgets.progress_panel import EnhancedProgressPanel
 import numpy as np, matplotlib
 matplotlib.use("Agg")
@@ -27,10 +26,8 @@ PLOT_PARAM_MAP = {
     '4': [],
     '5': ["files_edit", "max_harmonic"],
     '6': ["harmonics"],
-    '6p': ["harmonics"],
     '6q': [],
     '7a': ["file_index", "harmonics", "data_range"],
-    '7d': ["file_index", "harmonics", "data_range"],
     '7b': ["files_edit", "harmonics", "data_range"],
     '8': ["show_bifurcation"],
     '9': [],
@@ -82,15 +79,6 @@ class ControlPanel(QWidget):
         super().__init__(parent)
         self._preprocessed_frequency = None
         self._init_ui()
-        get_ui_scale().register(self)
-        self.apply_ui_scale()
-
-    def apply_ui_scale(self):
-        """Re-apply UI scale to fixed-size elements after a font change."""
-        scale = get_ui_scale()
-        if hasattr(self, 'colormap_preview_label'):
-            self.colormap_preview_label.setFixedHeight(scale.scaled(30))
-        self._update_colormap_preview(self.colormap_combo.currentData())
 
     def _init_ui(self):
         """Initialize the user interface"""
@@ -200,7 +188,6 @@ class ControlPanel(QWidget):
                 self.fourier_single_combo.setVisible(False)
                 fourier_single_subtypes = [
                  ("6", tr("In/I1 Ratio", "FourierSingleSubtypes")),
-                 ("6p", tr("Phase Angle Change", "FourierSingleSubtypes")),
                  ("6q", tr("Q Value", "FourierSingleSubtypes"))]
                 for code, name in fourier_single_subtypes:
                     self.fourier_single_combo.addItem(name, code)
@@ -210,8 +197,7 @@ class ControlPanel(QWidget):
                     self.spp_combo = QComboBox()
                     self.spp_combo.setVisible(False)
                     spp_subtypes = [
-                     ("7a", tr("SPP-Fourier Calculation", "SPPSubtypes")),
-                     ("7d", tr("SPP-Derivative Calculation", "SPPSubtypes")),
+                     ("7a", tr("Calculate & Plot", "SPPSubtypes")),
                      ("7b", tr("Multi-File Overlay", "SPPSubtypes"))]
                     for code, name in spp_subtypes:
                         self.spp_combo.addItem(name, code)
@@ -221,7 +207,7 @@ class ControlPanel(QWidget):
                         self.cage_modulus_combo = QComboBox()
                         self.cage_modulus_combo.setVisible(False)
                         cage_subtypes = [
-                         ("10a", tr("G_cage/G′_lin vs Strain", "CageSubtypes")),
+                         ("10a", tr("G'/G_cage vs Strain", "CageSubtypes")),
                          ("10b", tr("G_cage vs Strain", "CageSubtypes"))]
                         for code, name in cage_subtypes:
                             self.cage_modulus_combo.addItem(name, code)
@@ -261,20 +247,11 @@ class ControlPanel(QWidget):
         if default_idx >= 0:
             self.colormap_combo.setCurrentIndex(default_idx)
         self.colormap_combo.currentIndexChanged.connect(self._on_colormap_changed)
-        # Do not let the longest item (e.g. "turbo_r (Recommended for Stress
-        # Bifurcation)") dictate the panel width: size to a moderate amount of
-        # content and let the popup show the full text.
-        self.colormap_combo.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
-        self.colormap_combo.setMinimumContentsLength(12)
-        self.colormap_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         cmap_layout.addWidget(self.colormap_combo)
         layout.addLayout(cmap_layout)
         self.colormap_preview_label = QLabel()
-        self.colormap_preview_label.setFixedHeight(get_ui_scale().scaled(30))
-        # The preview pixmap must not dictate the panel width (that would feed
-        # back into the layout and grow the whole window); ignore its hint.
-        self.colormap_preview_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
-        self.colormap_preview_label.setMinimumWidth(0)
+        self.colormap_preview_label.setFixedHeight(30)
+        self.colormap_preview_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.colormap_preview_label.setToolTip(tr("Colormap preview", "ControlPanel"))
         layout.addWidget(self.colormap_preview_label)
         self._update_colormap_preview("viridis")
@@ -287,51 +264,33 @@ class ControlPanel(QWidget):
             return
         self._update_colormap_preview(cmap_name)
 
-    def _render_colormap_pixmap(self, cmap_name: str) -> Optional[QPixmap]:
-        """Render a colormap strip to a self-owned QPixmap (cached)."""
-        if not hasattr(self, '_colormap_pixmap_cache'):
-            self._colormap_pixmap_cache = {}
-        cached = self._colormap_pixmap_cache.get(cmap_name)
-        if cached is not None and not cached.isNull():
-            return cached
-        try:
-            import matplotlib
-            matplotlib.use("Agg")
-            from matplotlib.figure import Figure
-            from matplotlib.backends.backend_agg import FigureCanvasAgg
-            cmap = plt.get_cmap(cmap_name)
-            gradient = np.linspace(0, 1, 256).reshape(1, -1)
-            fig = Figure(figsize=(4, 0.3), dpi=100)
-            canvas = FigureCanvasAgg(fig)
-            ax = fig.add_subplot(111)
-            ax.imshow(gradient, aspect="auto", cmap=cmap)
-            ax.axis("off")
-            canvas.draw()
-            width, height = canvas.get_width_height()
-            buf = np.asarray(canvas.buffer_rgba())
-            # Copy the pixels: QImage does not own the buffer and the
-            # numpy/matplotlib buffer may be freed, which would leave a
-            # dangling pointer and crash Qt later.
-            qimg = QImage(buf.data, width, height, int(buf.strides[0]), QImage.Format_RGBA8888).copy()
-            pixmap = QPixmap.fromImage(qimg)
-            self._colormap_pixmap_cache[cmap_name] = pixmap
-            return pixmap
-        except Exception:
-            return None
-
     def _update_colormap_preview(self, cmap_name: str):
         """Update colormap preview bar"""
-        pixmap = self._render_colormap_pixmap(cmap_name)
-        if pixmap is None or pixmap.isNull():
-            self.colormap_preview_label.setText(f"[{cmap_name}]")
-            return
-        label_width = self.colormap_preview_label.width()
-        target_height = self.colormap_preview_label.height() or get_ui_scale().scaled(30)
-        if label_width > 10:
-            scaled_pixmap = pixmap.scaled(label_width, target_height, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
-            self.colormap_preview_label.setPixmap(scaled_pixmap)
-        else:
-            self.colormap_preview_label.setPixmap(pixmap)
+        try:
+            cmap = plt.get_cmap(cmap_name)
+            gradient = np.linspace(0, 1, 256)
+            gradient = gradient.reshape(1, -1)
+            fig, ax = plt.subplots(figsize=(4, 0.3), dpi=100)
+            ax.imshow(gradient, aspect="auto", cmap=cmap)
+            ax.axis("off")
+            fig.canvas.draw()
+            buf = fig.canvas.buffer_rgba()
+            width, height = fig.canvas.get_width_height()
+            qimg = QImage(buf, width, height, QImage.Format_RGBA8888)
+            pixmap = QPixmap.fromImage(qimg)
+            plt.close(fig)
+            label_width = self.colormap_preview_label.width()
+            if label_width > 10:
+                scaled_pixmap = pixmap.scaled(label_width, 30, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+                self.colormap_preview_label.setPixmap(scaled_pixmap)
+            else:
+                self.colormap_preview_label.setPixmap(pixmap)
+        except Exception as e:
+            try:
+                self.colormap_preview_label.setText(f"[{cmap_name}]")
+            finally:
+                e = None
+                del e
 
     def get_colormap(self) -> str:
         """Get selected colormap name"""
@@ -340,20 +299,8 @@ class ControlPanel(QWidget):
     def resizeEvent(self, event):
         """Handle resize event to update colormap preview"""
         super().resizeEvent(event)
-        # Defer to the event loop: rendering matplotlib synchronously inside a
-        # resize (which also fires during a stylesheet re-polish) can re-enter
-        # layout/paint and crash Qt.
-        from PyQt5.QtCore import QTimer
-        QTimer.singleShot(0, self._refresh_colormap_preview)
-
-    def _refresh_colormap_preview(self):
-        """Refresh the colormap preview using the current selection."""
-        try:
-            cmap_name = self.colormap_combo.currentData()
-            if cmap_name and cmap_name != "__separator__":
-                self._update_colormap_preview(cmap_name)
-        except RuntimeError:
-            pass
+        cmap_name = self.colormap_combo.currentData()
+        self._update_colormap_preview(cmap_name)
 
     def _on_lissajous_subtype_changed(self, index):
         """Handle Lissajous overlay subtype selection"""
@@ -369,16 +316,11 @@ class ControlPanel(QWidget):
             jet_r_idx = self.colormap_combo.findData("jet_r")
             if jet_r_idx >= 0:
                 self.colormap_combo.setCurrentIndex(jet_r_idx)
-        # For SPP single plot (7a, 7d), switch to viridis
-        elif subtype_code in ("7a", "7d"):
+        # For SPP single plot (7a), switch to viridis
+        elif subtype_code == "7a":
             viridis_idx = self.colormap_combo.findData("viridis")
             if viridis_idx >= 0:
                 self.colormap_combo.setCurrentIndex(viridis_idx)
-
-    def _on_harmonics_mode_changed(self, index):
-        """Auto: hide spin box; Manual: show spin box for user input"""
-        mode = self.harmonics_combo.currentData()
-        self.harmonics_spin.setVisible(mode == "manual")
 
     def _on_cage_modulus_subtype_changed(self, index):
         """Handle cage modulus subtype selection"""
@@ -415,25 +357,13 @@ class ControlPanel(QWidget):
         self.harmonics_label = QLabel(tr("Harmonics:", "ControlPanel"))
         self.harmonics_label.setVisible(False)
         layout.addWidget(self.harmonics_label, 2, 0)
-        harmonics_layout = QHBoxLayout()
-        harmonics_layout.setContentsMargins(0, 0, 0, 0)
-        self.harmonics_combo = QComboBox()
-        self.harmonics_combo.addItem(tr("Auto", "ControlPanel"), "auto")
-        self.harmonics_combo.addItem(tr("Manual", "ControlPanel"), "manual")
-        self.harmonics_combo.setToolTip(tr("Auto: keep odd harmonics while In/I1 >= 1e-3 and In >= 5x noise floor (n=3 always kept); Manual: enter N", "ParamTooltips"))
-        self.harmonics_combo.setVisible(False)
-        self.harmonics_combo.currentIndexChanged.connect(self._on_harmonics_mode_changed)
-        harmonics_layout.addWidget(self.harmonics_combo)
-        self.harmonics_spin = QLineEdit()
-        self.harmonics_spin.setPlaceholderText("15")
-        self.harmonics_spin.setValidator(QIntValidator(1, 50, self))
+        self.harmonics_spin = QSpinBox()
+        self.harmonics_spin.setMinimum(1)
+        self.harmonics_spin.setMaximum(50)
+        self.harmonics_spin.setValue(15)
         self.harmonics_spin.setToolTip(tooltips["harmonics"])
         self.harmonics_spin.setVisible(False)
-        harmonics_layout.addWidget(self.harmonics_spin)
-        self.harmonics_widget = QWidget()
-        self.harmonics_widget.setLayout(harmonics_layout)
-        self.harmonics_widget.setVisible(False)
-        layout.addWidget(self.harmonics_widget, 2, 1)
+        layout.addWidget(self.harmonics_spin, 2, 1)
         self.omega_label = QLabel(tr("ω (Frequency):", "ControlPanel"))
         self.omega_label.setVisible(False)
         layout.addWidget(self.omega_label, 3, 0)
@@ -478,7 +408,6 @@ class ControlPanel(QWidget):
         self.data_range_combo.setToolTip(tooltips["data_range"])
         self.data_range_combo.setVisible(False)
         layout.addWidget(self.data_range_combo, 5, 1)
-
         self.edit_titles_btn = QPushButton(tr("Edit Titles...", "ControlPanel"))
         self.edit_titles_btn.setToolTip(tr("Open dialog to edit custom curve titles for each file", "ControlPanel"))
         self.edit_titles_btn.clicked.connect(self._on_edit_titles)
@@ -522,15 +451,16 @@ class ControlPanel(QWidget):
         self._custom_titles = None
 
     def _on_omega_unit_changed(self, unit: str):
-        """Handle omega unit change"""
+        """Handle omega unit change - update display without resetting value"""
+        import numpy as np
+        current_value = self.omega_value_spin.value()
+        
         if unit == "rad/s":
-            self.pi_label.setVisible(False)
-            self.omega_value_spin.setToolTip(tr("Angular frequency ω (rad/s)", "ControlPanel"))
-            self.omega_value_spin.setDecimals(4)
+            self.pi_label.setVisible(True)
+            self.omega_value_spin.setToolTip(tr("ω = n × π (rad/s)", "ControlPanel"))
         else:
             self.pi_label.setVisible(False)
             self.omega_value_spin.setToolTip(tr("Frequency f (Hz)", "ControlPanel"))
-            self.omega_value_spin.setDecimals(2)
 
     def _create_progress_group(self):
         """Create progress display group"""
@@ -587,8 +517,8 @@ class ControlPanel(QWidget):
                 jet_r_idx = self.colormap_combo.findData("jet_r")
                 if jet_r_idx >= 0:
                     self.colormap_combo.setCurrentIndex(jet_r_idx)
-# For SPP single plot (7a, 7d), switch to viridis
-            elif subtype_code in ("7a", "7d"):
+            # For SPP single plot (7a), switch to viridis
+            elif subtype_code == "7a":
                 viridis_idx = self.colormap_combo.findData("viridis")
                 if viridis_idx >= 0:
                     self.colormap_combo.setCurrentIndex(viridis_idx)
@@ -625,10 +555,9 @@ class ControlPanel(QWidget):
         required_params = PLOT_PARAM_MAP.get(plot_code, [])
         
         # Determine if we need to show params_group
-        scatter_plots = ('4', '9', '6', '6p', '6q', '7a', '7d', '7b', '8')  # ST values, Dissipation, Fourier, Phase Angle, Q Value, SPP (Fourier/Derivative/multi), Bifurcation
+        scatter_plots = ('4', '9', '6', '6q', '7a', '7b', '8')  # ST values, Dissipation, Fourier, Q Value, SPP (single & multi), Bifurcation
         line_plots = ('1', '3a', '3b', '3c', '5')  # Lissajous curves
         
-        # Determine if we need to show params_group
         is_scatter = plot_code in scatter_plots
         is_line = plot_code in line_plots
         
@@ -643,24 +572,12 @@ class ControlPanel(QWidget):
         self.files_label.setVisible("files_edit" in required_params)
         self.files_edit.setVisible("files_edit" in required_params)
         self.harmonics_label.setVisible("harmonics" in required_params)
-        self.harmonics_widget.setVisible("harmonics" in required_params)
+        self.harmonics_spin.setVisible("harmonics" in required_params)
         if "harmonics" in required_params:
-            if plot_code in ('6', '6p'):
-                # For Fourier single-order (In/I1 ratio / phase angle), hide
-                # Auto/Manual, show only the harmonic-number spin.
-                self.harmonics_combo.setVisible(False)
-                self.harmonics_spin.setVisible(True)
-                # Only seed the default the first time; otherwise honour the
-                # value the user typed (previously it was reset to 3 on every
-                # refresh, so the harmonic number could never be changed).
-                if not self.harmonics_spin.text().strip():
-                    self.harmonics_spin.setText("3")
-            elif plot_code in ('7a', '7d', '7b'):
-                # For SPP, show Auto/Manual dropdown, default Auto (spin hidden)
-                self.harmonics_combo.setVisible(True)
-                self.harmonics_combo.setCurrentIndex(0)  # Auto
-                self.harmonics_spin.setVisible(False)
-                self.harmonics_spin.setText("15")
+            if plot_code == '6':
+                self.harmonics_spin.setValue(3)
+            elif plot_code in ('7a', '7b'):
+                self.harmonics_spin.setValue(15)
         max_harmonic_required = "max_harmonic" in required_params
         self.max_harmonic_label.setVisible(max_harmonic_required)
         self.max_harmonic_spin.setVisible(max_harmonic_required)
@@ -668,6 +585,7 @@ class ControlPanel(QWidget):
         self.omega_label.setVisible(omega_required)
         self.omega_unit_combo.setVisible(omega_required)
         self.omega_value_spin.setVisible(omega_required)
+        self.pi_label.setVisible(omega_required and self.omega_unit_combo.currentText() == "rad/s")
         data_range_required = "data_range" in required_params
         self.data_range_label.setVisible(data_range_required)
         self.data_range_combo.setVisible(data_range_required)
@@ -679,7 +597,7 @@ class ControlPanel(QWidget):
         self.use_normalized_checkbox.setVisible(use_normalized_required)
         
         # Show marker size for scatter plots, line width for line plots
-        scatter_plots = ('4', '9', '6', '6p', '6q', '7a', '7d', '7b', '8')  # ST values, Dissipation, Fourier, Phase Angle, Q Value, SPP (Fourier/Derivative/multi), Bifurcation
+        scatter_plots = ('4', '9', '6', '6q', '7a', '7b', '8')  # ST values, Dissipation, Fourier, SPP (single & multi), Bifurcation, Q Value
         line_plots = ('1', '3a', '3b', '3c', '5')  # Lissajous curves
         
         is_scatter = plot_code in scatter_plots
@@ -745,23 +663,16 @@ class ControlPanel(QWidget):
         if self.files_edit.isVisible():
             params['files_edit'] = self.files_edit.text()
         
-        if self.harmonics_combo.isVisible():
-            if self.harmonics_combo.currentData() == "auto":
-                params['harmonics'] = 'auto'
-            else:
-                params['harmonics'] = int(self.harmonics_spin.text()) if self.harmonics_spin.text().strip() else 15
-        elif self.harmonics_spin.isVisible():
-            # Fourier single-order ("6"): the spin is shown without the combo.
-            txt = self.harmonics_spin.text().strip()
-            params['harmonics'] = int(txt) if txt else 3
+        if self.harmonics_spin.isVisible():
+            params['harmonics'] = self.harmonics_spin.value()
         
         if self.omega_label.isVisible():
             omega_value = self.omega_value_spin.value()
             omega_unit = self.omega_unit_combo.currentText()
             if omega_unit == "rad/s":
-                params['omega'] = omega_value  # direct angular frequency input
+                params['omega'] = omega_value * np.pi
             else:
-                params['omega'] = omega_value * 2 * np.pi  # Hz -> rad/s
+                params['omega'] = omega_value * 2 * np.pi
         
         if self.max_harmonic_spin.isVisible():
             params['max_harmonic'] = self.max_harmonic_spin.value()
@@ -986,10 +897,12 @@ class ControlPanel(QWidget):
             self.colormap_combo.setCurrentIndex(colormap_idx)
         
         marker_size = settings.get_plot_setting("marker_size", 50)
-        self.marker_size_spin.setValue(marker_size)
+        if self.marker_size_spin.isVisible():
+            self.marker_size_spin.setValue(marker_size)
         
         line_width = settings.get_plot_setting("line_width", 5)
-        self.line_width_spin.setValue(line_width)
+        if self.line_width_spin.isVisible():
+            self.line_width_spin.setValue(line_width)
         
         self._update_colormap_preview(colormap)
         
@@ -1006,13 +919,11 @@ class ControlPanel(QWidget):
                 self.colormap_combo.setCurrentIndex(colormap_idx)
                 self._update_colormap_preview(value)
         elif setting_key == "marker_size":
-            # Always update the value (even while hidden) so the widget is in
-            # sync the next time it becomes visible for a scatter-plot type.
-            self.marker_size_spin.setValue(value)
+            if self.marker_size_spin.isVisible():
+                self.marker_size_spin.setValue(value)
         elif setting_key == "line_width":
-            # Always update the value (even while hidden) so the widget is in
-            # sync the next time it becomes visible for a line-plot type.
-            self.line_width_spin.setValue(value)
+            if self.line_width_spin.isVisible():
+                self.line_width_spin.setValue(value)
 
     def clear_custom_titles(self):
         """Clear custom titles"""
@@ -1039,8 +950,6 @@ class ControlPanel(QWidget):
         self.files_edit.setPlaceholderText(tr("e.g., 030,120,150", "ControlPanel"))
         self.files_edit.setToolTip(tooltips["files_edit"])
         self.harmonics_label.setText(tr("Harmonics:", "ControlPanel"))
-        self.harmonics_combo.setItemText(0, tr("Auto", "ControlPanel"))
-        self.harmonics_combo.setItemText(1, tr("Manual", "ControlPanel"))
         self.harmonics_spin.setToolTip(tooltips["harmonics"])
         self.max_harmonic_label.setText(tr("Max Harmonic (n):", "ControlPanel"))
         self.max_harmonic_spin.setToolTip(tr("Maximum harmonic number to display (will show n=1 to n=max)", "ControlPanel"))
@@ -1060,23 +969,12 @@ class ControlPanel(QWidget):
         self.show_bifurcation_checkbox.setToolTip(tooltips.get("show_bifurcation", ""))
         self.use_normalized_checkbox.setText(tr("Use Normalized Data", "ControlPanel"))
         self.use_normalized_checkbox.setToolTip(tr("Normalize stress-strain data to [-1, 1] range for overlay", "ControlPanel"))
-        self.marker_size_label.setText(tr("Marker Size:", "ControlPanel"))
-        self.marker_size_spin.setToolTip(tr("Marker size for scatter plots (1-200)", "ControlPanel"))
-        self.line_width_label.setText(tr("Line Width:", "ControlPanel"))
-        self.line_width_spin.setToolTip(tr("Line width for curve plots (1-20)", "ControlPanel"))
         self.progress_panel._refresh_ui()
         self.colormap_group.setTitle(tr("Colormap", "ControlPanel"))
         self.colormap_label.setText(tr("Color:", "ControlPanel"))
         self.colormap_combo.setToolTip(tr("Select colormap for scatter plots and overlays", "ControlPanel"))
         self.colormap_preview_label.setToolTip(tr("Colormap preview", "ControlPanel"))
         self._refresh_colormap_combo()
-        # Re-apply parameter visibility: rebuilding the plot-type combo above
-        # resets its current index, so the line-width / marker-size rows and
-        # other parameter widgets must be re-evaluated for the active type.
-        try:
-            self._on_plot_type_changed(self.plot_type_combo.currentIndex())
-        except Exception:
-            pass
 
     def _refresh_colormap_combo(self):
         """Refresh colormap combo box items with grouped display"""
@@ -1144,7 +1042,6 @@ class ControlPanel(QWidget):
         self.fourier_single_combo.clear()
         fourier_single_subtypes = [
             ("6", tr("In/I1 Ratio", "FourierSingleSubtypes")),
-            ("6p", tr("Phase Angle Change", "FourierSingleSubtypes")),
             ("6q", tr("Q Value", "FourierSingleSubtypes"))
         ]
         for code, name in fourier_single_subtypes:
@@ -1156,8 +1053,7 @@ class ControlPanel(QWidget):
         current_spp = self.spp_combo.currentData()
         self.spp_combo.clear()
         spp_subtypes = [
-            ("7a", tr("SPP-Fourier Calculation", "SPPSubtypes")),
-            ("7d", tr("SPP-Derivative Calculation", "SPPSubtypes")),
+            ("7a", tr("Calculate & Plot", "SPPSubtypes")),
             ("7b", tr("Multi-File Overlay", "SPPSubtypes"))
         ]
         for code, name in spp_subtypes:
@@ -1169,7 +1065,7 @@ class ControlPanel(QWidget):
         current_cage = self.cage_modulus_combo.currentData()
         self.cage_modulus_combo.clear()
         cage_subtypes = [
-            ("10a", tr("G_cage/G′_lin vs Strain", "CageSubtypes")),
+            ("10a", tr("G'/G_cage vs Strain", "CageSubtypes")),
             ("10b", tr("G_cage vs Strain", "CageSubtypes"))
         ]
         for code, name in cage_subtypes:
@@ -1193,7 +1089,7 @@ class LogPanel(QWidget):
         from PyQt5.QtWidgets import QTextEdit
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
-        self.log_text.setStyleSheet(f"\n            QTextEdit {{\n                background-color: #1e1e1e;\n                color: #d4d4d4;\n                font-family: Consolas, 'Courier New', monospace;\n                font-size: {get_ui_scale().scaled(11)}px;\n            }}\n        ")
+        self.log_text.setStyleSheet("\n            QTextEdit {\n                background-color: #1e1e1e;\n                color: #d4d4d4;\n                font-family: Consolas, 'Courier New', monospace;\n                font-size: 11px;\n            }\n        ")
         layout.addWidget(self.log_text)
         self.clear_btn = QPushButton(tr("Clear Log", "LogPanel"))
         self.clear_btn.clicked.connect(self.clear_log)
@@ -1242,11 +1138,11 @@ class TitleEditDialog(QDialog):
 
     def _init_ui(self):
         """Initialize the dialog UI"""
-        self.setWindowTitle(tr("Edit Curve Titles", "ControlPanel"))
-        self.setMinimumWidth(get_ui_scale().scaled(400))
-        self.setMinimumHeight(get_ui_scale().scaled(300))
+        self.setWindowTitle("编辑曲线标题")
+        self.setMinimumWidth(400)
+        self.setMinimumHeight(300)
         layout = QVBoxLayout(self)
-        instructions = QLabel(tr("Enter custom curve titles for each file number. These titles will be displayed in the legend.", "ControlPanel"))
+        instructions = QLabel("输入每个文件编号的自定义曲线标题。这些标题将显示在图例中。")
         instructions.setWordWrap(True)
         layout.addWidget(instructions)
         scroll_area = QScrollArea()
@@ -1254,11 +1150,11 @@ class TitleEditDialog(QDialog):
         scroll_widget = QWidget()
         scroll_layout = QGridLayout(scroll_widget)
         for i, (file_num, title) in enumerate(zip(self.file_numbers, self.current_titles)):
-            label = QLabel(tr("File Number:", "ControlPanel") + f" {file_num}")
+            label = QLabel(f"文件编号: {file_num}")
             scroll_layout.addWidget(label, i, 0)
             edit = QLineEdit()
             edit.setText(title)
-            edit.setPlaceholderText(tr("Enter title for file", "ControlPanel") + f" {file_num}")
+            edit.setPlaceholderText(f"输入文件 {file_num} 的标题")
             self.title_edits.append(edit)
             scroll_layout.addWidget(edit, i, 1)
         else:
@@ -1271,4 +1167,4 @@ class TitleEditDialog(QDialog):
 
     def get_titles(self) -> List[str]:
         """Get the edited titles"""
-        return [edit.text().strip() or f"File {num}" for num, edit in zip(self.file_numbers, self.title_edits)]
+        return [edit.text().strip() or f"文件 {num}" for num, edit in zip(self.file_numbers, self.title_edits)]
