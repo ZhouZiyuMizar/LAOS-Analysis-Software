@@ -1,8 +1,8 @@
 # LAOS Analysis Software
 
-**v1.01, Windows x64 desktop software for nonlinear rheology**
+**v1.03, Windows x64 desktop software for nonlinear rheology**
 
-[Download the Windows app](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/tag/v1.01) | [Source code](src/) | [Example data](examples/Test%20Data/) | [English manual](docs/User-Manual-EN.pdf) | [Chinese README](README.zh-CN.md)
+[Download the Windows app](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/tag/v1.03) | [Source code](src/) | [Example data](examples/Test%20Data/) | [English manual](docs/User-Manual-EN.pdf) | [Chinese README](README.zh-CN.md)
 
 ## Overview
 
@@ -27,9 +27,9 @@ There are three common ways to use this repository.
 
 | Need | Recommended route |
 | --- | --- |
-| Run the software directly | Download all twelve `LAOS-Analysis-V1.01-Windows-x64.zip.001`–`.012` files and `JOIN-Windows-Package.cmd` from the [v1.01 release](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/tag/v1.01). Run the CMD file to rebuild the complete ZIP, then extract it. |
+| Run the software directly | Download all twelve `LAOS-Analysis-V1.03-Windows-x64.zip.001`–`.012` files and `JOIN-Windows-Package.cmd` from the [v1.03 release](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/tag/v1.03). Run the CMD file to rebuild the complete ZIP, then extract it. |
 | Read or modify the source code | Browse the [`src/`](src/) folder, clone the repository, or use GitHub's green **Code** button. |
-| Use the example data | Browse [`examples/Test Data/`](examples/Test%20Data/) in the repository, clone the repository, or download `LAOS-Analysis-V1.01-Examples.zip` from the release page. |
+| Use the example data | Browse [`examples/Test Data/`](examples/Test%20Data/) in the repository, clone the repository, or download `LAOS-Analysis-V1.03-Examples.zip` from the release page. |
 
 GitHub's automatically generated **Source code** archives contain the repository files, including the source code and example data. They do not contain the full Windows runtime package. To run the packaged application, use the Windows ZIP from the release page.
 
@@ -37,10 +37,10 @@ GitHub's automatically generated **Source code** archives contain the repository
 
 For normal use on Windows:
 
-1. Download all twelve Windows ZIP parts and `JOIN-Windows-Package.cmd` from the [v1.01 release](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/tag/v1.01).
+1. Download all twelve Windows ZIP parts and `JOIN-Windows-Package.cmd` from the [v1.03 release](https://github.com/ZhouZiyuMizar/LAOS-Analysis-Software/releases/tag/v1.03).
 2. Place the parts and CMD file in one folder, then run `JOIN-Windows-Package.cmd`.
-3. Extract the resulting `LAOS-Analysis-V1.01-Windows-x64.zip` into a writable local folder.
-4. Open the extracted `LAOS-Analysis-V1.01` folder and run `LAOS_Analysis.exe`.
+3. Extract the resulting `LAOS-Analysis-V1.03-Windows-x64.zip` into a writable local folder.
+4. Open the extracted `LAOS-Analysis-V1.03` folder and run `LAOS_Analysis.exe`.
 5. Keep `_internal` in the same folder as the executable.
 
 The Windows package includes Python and the required runtime libraries. Users do not need to install Python separately.
@@ -104,7 +104,7 @@ The packaged Windows application already includes its runtime dependencies.
 
 This repository is released under the Creative Commons Attribution 4.0 International License. See [LICENSE](LICENSE).
 
-If you use this software, source code, documentation, or example data in academic work, please cite **LAOS Analysis Software, v1.01** using [CITATION.cff](CITATION.cff) or GitHub's **Cite this repository** feature.
+If you use this software, source code, documentation, or example data in academic work, please cite **LAOS Analysis Software, v1.03** using [CITATION.cff](CITATION.cff) or GitHub's **Cite this repository** feature.
 
 ## Authors and Affiliation
 
